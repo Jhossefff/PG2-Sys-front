@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Modal, Form, Button, Row, Col, Alert } from "react-bootstrap";
+import MapPicker from "./MapPicker";
 
 const initialForm = {
   codigo: "",
@@ -17,17 +18,44 @@ const initialForm = {
 export default function EmpresaFormModal({ show, onHide, onSave, loading = false, error = null }) {
   const [form, setForm] = useState(initialForm);
   const [validated, setValidated] = useState(false);
+  const [coords, setCoords] = useState(null); // {lat, lng}
 
   useEffect(() => {
     if (show) {
       setForm(initialForm);
+      setCoords(null);
       setValidated(false);
     }
   }, [show]);
 
+  // Cuando cambian coords, actualizamos lat/long y urlmap
+  useEffect(() => {
+    if (coords?.lat && coords?.lng) {
+      const lat = String(coords.lat);
+      const lng = String(coords.lng);
+      setForm((f) => ({
+        ...f,
+        latitud: lat,
+        longitud: lng,
+        urlmapa: `https://www.google.com/maps?q=${lat},${lng}`,
+      }));
+    }
+  }, [coords]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return alert("Geolocalización no soportada.");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: c }) => {
+        setCoords({ lat: c.latitude, lng: c.longitude });
+      },
+      () => alert("No se pudo obtener la ubicación."),
+      { enableHighAccuracy: true }
+    );
   };
 
   const handleSubmit = (e) => {
@@ -38,7 +66,6 @@ export default function EmpresaFormModal({ show, onHide, onSave, loading = false
       setValidated(true);
       return;
     }
-    // Campos mínimos: ajusta según tu backend
     const payload = {
       codigo: form.codigo.trim(),
       nombre: form.nombre.trim(),
@@ -154,6 +181,26 @@ export default function EmpresaFormModal({ show, onHide, onSave, loading = false
               </Form.Group>
             </Col>
 
+            {/* === Selector en mapa === */}
+            <Col md={12}>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <strong>Ubicación</strong>
+                <div className="d-flex gap-2">
+                  <Button size="sm" variant="secondary" onClick={handleUseMyLocation}>
+                    Usar mi ubicación
+                  </Button>
+                </div>
+              </div>
+              <MapPicker
+                value={coords}
+                onChange={(p) => setCoords(p)}
+                height="320px"
+              />
+              <small className="text-muted">
+                Haz click en el mapa para seleccionar la posición.
+              </small>
+            </Col>
+
             <Col md={4}>
               <Form.Group>
                 <Form.Label>Latitud</Form.Label>
@@ -183,7 +230,7 @@ export default function EmpresaFormModal({ show, onHide, onSave, loading = false
                   name="urlmapa"
                   value={form.urlmapa}
                   onChange={handleChange}
-                  placeholder="https://maps.google.com/?q=..."
+                  placeholder="https://www.google.com/maps?q=lat,lng"
                 />
               </Form.Group>
             </Col>

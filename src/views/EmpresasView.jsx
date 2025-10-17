@@ -3,6 +3,7 @@ import { Table, Card, Row, Col, Spinner, Alert, Button } from "react-bootstrap";
 import { getEmpresas, createEmpresa } from "../api/empresas";
 import EmpresaFormModal from "../components/EmpresaFormModal";
 
+
 const EmpresasView = () => {
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
