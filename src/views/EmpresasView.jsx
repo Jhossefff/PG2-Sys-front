@@ -1,18 +1,30 @@
+// src/views/EmpresasView.jsx
 import React, { useEffect, useState } from "react";
-import { Table, Card, Row, Col, Spinner, Alert, Button } from "react-bootstrap";
-import { getEmpresas, createEmpresa } from "../api/empresas";
+import {
+  Table, Card, Row, Col, Spinner, Alert, Button, ButtonGroup,
+} from "react-bootstrap";
+import {
+  getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa,
+} from "../api/empresas";
 import EmpresaFormModal from "../components/EmpresaFormModal";
-
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const EmpresasView = () => {
   const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // modal
+  // crear/editar
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [selectedEmpresa, setSelectedEmpresa] = useState(null);
+
+  // eliminar
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
+  const [flash, setFlash] = useState(null); // mensaje de éxito
 
   const cargar = async () => {
     setLoading(true);
@@ -31,7 +43,16 @@ const EmpresasView = () => {
     cargar();
   }, []);
 
-  const handleOpen = () => {
+  // crear
+  const openNew = () => {
+    setSelectedEmpresa(null);
+    setSaveError(null);
+    setShowModal(true);
+  };
+
+  // editar
+  const openEdit = (emp) => {
+    setSelectedEmpresa(emp);
     setSaveError(null);
     setShowModal(true);
   };
@@ -44,13 +65,44 @@ const EmpresasView = () => {
     setSaving(true);
     setSaveError(null);
     try {
-      await createEmpresa(payload);
-      await cargar();       // refresca la tabla
-      setShowModal(false);  // cierra modal
+      if (selectedEmpresa) {
+        await updateEmpresa(selectedEmpresa.idempresa, payload);
+        setFlash("Empresa actualizada correctamente.");
+      } else {
+        await createEmpresa(payload);
+        setFlash("Empresa creada correctamente.");
+      }
+      await cargar();
+      setShowModal(false);
+      setTimeout(() => setFlash(null), 3000);
     } catch (err) {
-      setSaveError(err.message || "No se pudo crear la empresa");
+      setSaveError(err.message || "Operación fallida");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // eliminar
+  const askDelete = (emp) => {
+    setToDelete(emp);
+    setConfirmOpen(true);
+  };
+  const cancelDelete = () => {
+    if (!deleting) setConfirmOpen(false);
+  };
+  const confirmDelete = async () => {
+    if (!toDelete) return;
+    setDeleting(true);
+    try {
+      await deleteEmpresa(toDelete.idempresa);
+      setFlash("Empresa eliminada.");
+      await cargar();
+      setConfirmOpen(false);
+      setTimeout(() => setFlash(null), 3000);
+    } catch (err) {
+      alert(err.message || "No se pudo eliminar");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -62,7 +114,6 @@ const EmpresasView = () => {
       </div>
     );
   }
-
   if (error) return <Alert variant="danger">Error: {error}</Alert>;
 
   return (
@@ -77,15 +128,18 @@ const EmpresasView = () => {
               </small>
             </Col>
             <Col className="text-end">
-              <Button variant="primary" onClick={handleOpen}>
+              <Button variant="primary" onClick={openNew}>
                 + Nueva Empresa
               </Button>
             </Col>
           </Row>
 
+          {flash && <Alert variant="success" onClose={() => setFlash(null)} dismissible>{flash}</Alert>}
+
           <Table striped bordered hover responsive>
             <thead className="table-dark">
               <tr>
+                <th style={{ width: 140 }}>Acciones</th>
                 <th>ID</th>
                 <th>Código</th>
                 <th>Nombre</th>
@@ -101,6 +155,31 @@ const EmpresasView = () => {
             <tbody>
               {empresas.map((emp) => (
                 <tr key={emp.idempresa}>
+                  <td>
+              
+                <div className="d-flex flex-wrap gap-1 justify-content-center">
+                 <Button
+                      size="sm"
+                      variant="primary"
+                      onClick={() => openEdit(emp)}
+                      title="Editar"
+                    >
+                     <i className="bi bi-pencil-fill"></i>
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => askDelete(emp)}
+                        title="Eliminar"
+                       >
+                         <i className="bi bi-trash-fill"></i>
+                        </Button>
+                        </div>
+
+
+
+                  </td>
                   <td>{emp.idempresa}</td>
                   <td>{emp.codigo}</td>
                   <td>{emp.nombre}</td>
@@ -122,13 +201,32 @@ const EmpresasView = () => {
         </Card.Body>
       </Card>
 
-      {/* Modal de creación */}
+      {/* Modal de crear / editar */}
       <EmpresaFormModal
         show={showModal}
         onHide={handleClose}
         onSave={handleSave}
         loading={saving}
         error={saveError}
+        empresa={selectedEmpresa}
+      />
+
+      {/* Confirmación de eliminación */}
+      <ConfirmDialog
+        show={confirmOpen}
+        title="Eliminar empresa"
+        body={
+          <>
+            ¿Seguro que deseas eliminar{" "}
+            <strong>{toDelete?.nombre || `ID ${toDelete?.idempresa}`}</strong>?
+            Esta acción no se puede deshacer.
+          </>
+        }
+        onCancel={cancelDelete}
+        onConfirm={confirmDelete}
+        confirmText={deleting ? "Eliminando..." : "Eliminar"}
+        confirmVariant="danger"
+        disableActions={deleting}
       />
     </>
   );
