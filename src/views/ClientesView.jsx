@@ -1,15 +1,14 @@
-// src/views/EmpresasView.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Table, Card, Row, Col, Spinner, Alert, Button, InputGroup, Form
 } from "react-bootstrap";
 import {
-  getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa,
-} from "../api/empresas";
-import EmpresaFormModal from "../components/EmpresaFormModal";
+  getClientes, createCliente, updateCliente, deleteCliente
+} from "../api/clientes";
+import ClienteFormModal from "../components/ClienteFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-// normaliza texto para búsquedas tolerantes a mayúsculas/acentos
+// normaliza para búsqueda
 const normalize = (v) =>
   (v ?? "")
     .toString()
@@ -17,23 +16,17 @@ const normalize = (v) =>
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "");
 
-const matchesQuery = (emp, q) => {
+const matchesQuery = (c, q) => {
   if (!q) return true;
   const nq = normalize(q);
   const campos = [
-    emp.idempresa,
-    emp.codigo,
-    emp.nombre,
-    emp.NIT,
-    emp.telefono,
-    emp.correo,
-    emp.direccion_formateada || emp.direccion,
+    c.idcliente, c.codigo, c.nombre, c.apellido, c.correo, c.telefono
   ];
   return campos.some((f) => normalize(f).includes(nq));
 };
 
-const EmpresasView = () => {
-  const [empresas, setEmpresas] = useState([]);
+export default function ClientesView() {
+  const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -41,7 +34,7 @@ const EmpresasView = () => {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
-  const [selectedEmpresa, setSelectedEmpresa] = useState(null);
+  const [selectedCliente, setSelectedCliente] = useState(null);
 
   // eliminar
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -52,7 +45,6 @@ const EmpresasView = () => {
   // búsqueda
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 250);
     return () => clearTimeout(t);
@@ -62,93 +54,64 @@ const EmpresasView = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getEmpresas();
-      setEmpresas(data);
+      const data = await getClientes();
+      setClientes(data);
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => { cargar(); }, []);
 
-  useEffect(() => {
-    cargar();
-  }, []);
-
-  // filtra en memoria
-  const empresasFiltradas = useMemo(
-    () => empresas.filter((e) => matchesQuery(e, debouncedQuery)),
-    [empresas, debouncedQuery]
+  const clientesFiltrados = useMemo(
+    () => clientes.filter((c) => matchesQuery(c, debouncedQuery)),
+    [clientes, debouncedQuery]
   );
 
-  // crear
-  const openNew = () => {
-    setSelectedEmpresa(null);
-    setSaveError(null);
-    setShowModal(true);
-  };
-
-  // editar
-  const openEdit = (emp) => {
-    setSelectedEmpresa(emp);
-    setSaveError(null);
-    setShowModal(true);
-  };
-
-  const handleClose = () => {
-    if (!saving) setShowModal(false);
-  };
+  const openNew = () => { setSelectedCliente(null); setSaveError(null); setShowModal(true); };
+  const openEdit = (c) => { setSelectedCliente(c); setSaveError(null); setShowModal(true); };
+  const handleClose = () => { if (!saving) setShowModal(false); };
 
   const handleSave = async (payload) => {
-    setSaving(true);
-    setSaveError(null);
+    setSaving(true); setSaveError(null);
     try {
-      if (selectedEmpresa) {
-        await updateEmpresa(selectedEmpresa.idempresa, payload);
-        setFlash("Empresa actualizada correctamente.");
+      if (selectedCliente) {
+        await updateCliente(selectedCliente.idcliente, payload);
+        setFlash("Cliente actualizado correctamente.");
       } else {
-        await createEmpresa(payload);
-        setFlash("Empresa creada correctamente.");
+        await createCliente(payload);
+        setFlash("Cliente creado correctamente.");
       }
       await cargar();
       setShowModal(false);
-      setTimeout(() => setFlash(null), 3000);
+      setTimeout(() => setFlash(null), 2500);
     } catch (err) {
       setSaveError(err.message || "Operación fallida");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  // eliminar
-  const askDelete = (emp) => {
-    setToDelete(emp);
-    setConfirmOpen(true);
-  };
-  const cancelDelete = () => {
-    if (!deleting) setConfirmOpen(false);
-  };
+  const askDelete = (c) => { setToDelete(c); setConfirmOpen(true); };
+  const cancelDelete = () => { if (!deleting) setConfirmOpen(false); };
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await deleteEmpresa(toDelete.idempresa);
-      setFlash("Empresa eliminada.");
+      await deleteCliente(toDelete.idcliente);
+      setFlash("Cliente eliminado.");
       await cargar();
       setConfirmOpen(false);
-      setTimeout(() => setFlash(null), 3000);
+      setTimeout(() => setFlash(null), 2000);
     } catch (err) {
       alert(err.message || "No se pudo eliminar");
-    } finally {
-      setDeleting(false);
-    }
+    } finally { setDeleting(false); }
   };
 
   if (loading) {
     return (
       <div className="text-center my-5">
         <Spinner animation="border" />
-        <p className="mt-2">Cargando empresas...</p>
+        <p className="mt-2">Cargando clientes...</p>
       </div>
     );
   }
@@ -156,22 +119,22 @@ const EmpresasView = () => {
 
   return (
     <>
-      <Card className="shadow-sm mt-4">
-        <Card.Body>
+      <Card className="shadow-sm mt-4 mx-2 mx-md-4">
+        <Card.Body className="px-1 px-md-4 py-3">
           <Row className="mb-3 align-items-center g-2">
             <Col xs={12} md={6}>
-              <h4 className="mb-0">Empresas Registradas</h4>
+              <h4 className="mb-0">Clientes</h4>
               <small className="text-muted">
                  {import.meta.env.VITE_API_URL || ""}
               </small>
             </Col>
 
-            {/* 🔎 Buscador */}
+            {/* Buscador */}
             <Col xs={12} md={4}>
               <InputGroup>
                 <InputGroup.Text><i className="bi bi-search" /></InputGroup.Text>
                 <Form.Control
-                  placeholder="Buscar por código, nombre, NIT, correo o dirección"
+                  placeholder="Buscar por código, nombre, apellido, correo o teléfono"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -182,18 +145,22 @@ const EmpresasView = () => {
                 )}
               </InputGroup>
               <small className="text-muted">
-                {empresasFiltradas.length} de {empresas.length} resultados
+                {clientesFiltrados.length} de {clientes.length} resultados
               </small>
             </Col>
 
             <Col xs={12} md={2} className="text-md-end">
               <Button variant="primary" onClick={openNew}>
-                + Nueva Empresa
+                + Nuevo Cliente
               </Button>
             </Col>
           </Row>
 
-          {flash && <Alert variant="success" onClose={() => setFlash(null)} dismissible>{flash}</Alert>}
+          {flash && (
+            <Alert variant="success" onClose={() => setFlash(null)} dismissible>
+              {flash}
+            </Alert>
+          )}
 
           <Table striped bordered hover responsive>
             <thead className="table-dark">
@@ -202,46 +169,36 @@ const EmpresasView = () => {
                 <th>ID</th>
                 <th>Código</th>
                 <th>Nombre</th>
-                <th>NIT</th>
-                <th>Teléfono</th>
+                <th>Apellido</th>
                 <th>Correo</th>
-                <th>Dirección</th>
-                <th>Mapa</th>
+                <th>Teléfono</th>
+                <th>Latitud</th>
+                <th>Longitud</th>
                 <th>Creación</th>
-                <th>Actualización</th>
               </tr>
             </thead>
             <tbody>
-              {empresasFiltradas.map((emp) => (
-                <tr key={emp.idempresa}>
+              {clientesFiltrados.map((c) => (
+                <tr key={c.idcliente}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
-                      <Button size="sm" variant="primary" onClick={() => openEdit(emp)} title="Editar">
+                      <button className="btn btn-primary btn-sm" title="Editar" onClick={() => openEdit(c)}>
                         <i className="bi bi-pencil-fill"></i>
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => askDelete(emp)} title="Eliminar">
+                      </button>
+                      <button className="btn btn-danger btn-sm" title="Eliminar" onClick={() => askDelete(c)}>
                         <i className="bi bi-trash-fill"></i>
-                      </Button>
+                      </button>
                     </div>
                   </td>
-                  <td>{emp.idempresa}</td>
-                  <td>{emp.codigo}</td>
-                  <td>{emp.nombre}</td>
-                  <td>{emp.NIT}</td>
-                  <td>{emp.telefono}</td>
-                  <td className="text-truncate" style={{ maxWidth: "180px" }} title={emp.correo}>
-                    {emp.correo}
-                  </td>
-                  <td className="text-truncate" style={{ maxWidth: "220px" }} title={emp.direccion_formateada || emp.direccion}>
-                    {emp.direccion_formateada || emp.direccion}
-                  </td>
-                  <td>
-                    <a href={emp.urlmapa} target="_blank" rel="noopener noreferrer">
-                      Ver mapa
-                    </a>
-                  </td>
-                  <td>{emp.fecha_creacion ? new Date(emp.fecha_creacion).toLocaleString() : "-"}</td>
-                  <td>{emp.fecha_actualizacion ? new Date(emp.fecha_actualizacion).toLocaleString() : "-"}</td>
+                  <td>{c.idcliente}</td>
+                  <td>{c.codigo}</td>
+                  <td>{c.nombre}</td>
+                  <td>{c.apellido}</td>
+                  <td className="text-truncate" style={{ maxWidth: "180px" }} title={c.correo}>{c.correo}</td>
+                  <td>{c.telefono}</td>
+                  <td>{c.latitud}</td>
+                  <td>{c.longitud}</td>
+                  <td>{c.fecha_creacion ? new Date(c.fecha_creacion).toLocaleString() : "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -249,24 +206,24 @@ const EmpresasView = () => {
         </Card.Body>
       </Card>
 
-      {/* Modal crear / editar */}
-      <EmpresaFormModal
+      {/* Modal crear/editar */}
+      <ClienteFormModal
         show={showModal}
         onHide={handleClose}
         onSave={handleSave}
         loading={saving}
         error={saveError}
-        empresa={selectedEmpresa}
+        cliente={selectedCliente}
       />
 
       {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
-        title="Eliminar empresa"
+        title="Eliminar cliente"
         body={
           <>
             ¿Seguro que deseas eliminar{" "}
-            <strong>{toDelete?.nombre || `ID ${toDelete?.idempresa}`}</strong>?
+            <strong>{toDelete?.nombre ? `${toDelete.nombre} ${toDelete.apellido}` : `ID ${toDelete?.idcliente}`}</strong>?
             Esta acción no se puede deshacer.
           </>
         }
@@ -278,6 +235,4 @@ const EmpresasView = () => {
       />
     </>
   );
-};
-
-export default EmpresasView;
+}

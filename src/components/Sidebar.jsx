@@ -4,9 +4,12 @@ import { NavLink } from "react-router-dom";
 const items = [
   { to: "/overview", icon: "bi-speedometer2", label: "Overview", disabled: true },
   { to: "/empresas", icon: "bi-buildings", label: "Empresas" },
-  { to: "/clientes", icon: "bi-people", label: "Clientes", disabled: true },
+  { to: "/clientes", icon: "bi-people", label: "Clientes"},
+  { to: "/lugares", icon: "bi-geo-alt", label: "Lugares" },
   { to: "/agenda", icon: "bi-calendar-event", label: "Agenda", disabled: true },
   { to: "/reportes", icon: "bi-graph-up", label: "Reportes", disabled: true },
+{ to: "/tarifas", icon: "bi-cash-coin", label: "Tarifas" }
+
 ];
 
 export default function Sidebar({ collapsed, onToggle }) {
@@ -16,7 +19,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         <div className="logo">
           <i className="bi bi-scissors"></i>
         </div>
-        {!collapsed && <span className="brand-text">Print Cabrera</span>}
+        {!collapsed && <span className="brand-text">Park</span>}
       </div>
 
       <nav className="sidebar-nav">

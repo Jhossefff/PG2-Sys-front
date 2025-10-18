@@ -1,55 +1,44 @@
-// src/views/EmpresasView.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Table, Card, Row, Col, Spinner, Alert, Button, InputGroup, Form
 } from "react-bootstrap";
 import {
-  getEmpresas, createEmpresa, updateEmpresa, deleteEmpresa,
-} from "../api/empresas";
-import EmpresaFormModal from "../components/EmpresaFormModal";
+  getLugares, createLugar, updateLugar, deleteLugar
+} from "../api/lugares";
+import { getEmpresas } from "../api/empresas";
+import { getEstados } from "../api/estados";
+import LugarFormModal from "../components/LugarFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-// normaliza texto para búsquedas tolerantes a mayúsculas/acentos
 const normalize = (v) =>
-  (v ?? "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
+  (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
-const matchesQuery = (emp, q) => {
+const matchesQuery = (l, q) => {
   if (!q) return true;
   const nq = normalize(q);
   const campos = [
-    emp.idempresa,
-    emp.codigo,
-    emp.nombre,
-    emp.NIT,
-    emp.telefono,
-    emp.correo,
-    emp.direccion_formateada || emp.direccion,
+    l.idlugar, l.nombre, l.descripcion,
+    l.empresa_nombre, l.empresa_codigo,
+    l.estado_nombre
   ];
   return campos.some((f) => normalize(f).includes(nq));
 };
 
-const EmpresasView = () => {
+export default function LugaresView() {
+  const [lugares, setLugares] = useState([]);
   const [empresas, setEmpresas] = useState([]);
+  const [estados, setEstados] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // crear/editar
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
-  const [selectedEmpresa, setSelectedEmpresa] = useState(null);
-
-  // eliminar
+  const [selectedLugar, setSelectedLugar] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [flash, setFlash] = useState(null);
-
-  // búsqueda
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
@@ -62,93 +51,80 @@ const EmpresasView = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await getEmpresas();
-      setEmpresas(data);
+      const [lug, emp, est] = await Promise.all([
+        getLugares(),
+        getEmpresas(),
+        getEstados()
+      ]);
+      setLugares(lug);
+      setEmpresas(emp);
+      setEstados(est);
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => { cargar(); }, []);
 
-  useEffect(() => {
-    cargar();
-  }, []);
+  const fallbackEstados = useMemo(() => {
+    const map = new Map();
+    for (const l of lugares) {
+      if (l.idestado && l.estado_nombre) {
+        map.set(l.idestado, { idestado: l.idestado, nombre: l.estado_nombre });
+      }
+    }
+    return [...map.values()];
+  }, [lugares]);
 
-  // filtra en memoria
-  const empresasFiltradas = useMemo(
-    () => empresas.filter((e) => matchesQuery(e, debouncedQuery)),
-    [empresas, debouncedQuery]
+  const lugaresFiltrados = useMemo(
+    () => lugares.filter((l) => matchesQuery(l, debouncedQuery)),
+    [lugares, debouncedQuery]
   );
 
-  // crear
-  const openNew = () => {
-    setSelectedEmpresa(null);
-    setSaveError(null);
-    setShowModal(true);
-  };
-
-  // editar
-  const openEdit = (emp) => {
-    setSelectedEmpresa(emp);
-    setSaveError(null);
-    setShowModal(true);
-  };
-
-  const handleClose = () => {
-    if (!saving) setShowModal(false);
-  };
+  const openNew = () => { setSelectedLugar(null); setSaveError(null); setShowModal(true); };
+  const openEdit = (l) => { setSelectedLugar(l); setSaveError(null); setShowModal(true); };
+  const handleClose = () => { if (!saving) setShowModal(false); };
 
   const handleSave = async (payload) => {
-    setSaving(true);
-    setSaveError(null);
+    setSaving(true); setSaveError(null);
     try {
-      if (selectedEmpresa) {
-        await updateEmpresa(selectedEmpresa.idempresa, payload);
-        setFlash("Empresa actualizada correctamente.");
+      if (selectedLugar) {
+        await updateLugar(selectedLugar.idlugar, payload);
+        setFlash("Lugar actualizado correctamente.");
       } else {
-        await createEmpresa(payload);
-        setFlash("Empresa creada correctamente.");
+        await createLugar(payload);
+        setFlash("Lugar creado correctamente.");
       }
       await cargar();
       setShowModal(false);
-      setTimeout(() => setFlash(null), 3000);
+      setTimeout(() => setFlash(null), 2500);
     } catch (err) {
       setSaveError(err.message || "Operación fallida");
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
-  // eliminar
-  const askDelete = (emp) => {
-    setToDelete(emp);
-    setConfirmOpen(true);
-  };
-  const cancelDelete = () => {
-    if (!deleting) setConfirmOpen(false);
-  };
+  const askDelete = (l) => { setToDelete(l); setConfirmOpen(true); };
+  const cancelDelete = () => { if (!deleting) setConfirmOpen(false); };
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
     try {
-      await deleteEmpresa(toDelete.idempresa);
-      setFlash("Empresa eliminada.");
+      await deleteLugar(toDelete.idlugar);
+      setFlash("Lugar eliminado.");
       await cargar();
       setConfirmOpen(false);
-      setTimeout(() => setFlash(null), 3000);
+      setTimeout(() => setFlash(null), 2000);
     } catch (err) {
       alert(err.message || "No se pudo eliminar");
-    } finally {
-      setDeleting(false);
-    }
+    } finally { setDeleting(false); }
   };
 
   if (loading) {
     return (
       <div className="text-center my-5">
         <Spinner animation="border" />
-        <p className="mt-2">Cargando empresas...</p>
+        <p className="mt-2">Cargando lugares...</p>
       </div>
     );
   }
@@ -156,22 +132,21 @@ const EmpresasView = () => {
 
   return (
     <>
-      <Card className="shadow-sm mt-4">
-        <Card.Body>
+      <Card className="shadow-sm mt-4 mx-2 mx-md-4">
+        <Card.Body className="px-1 px-md-4 py-3">
           <Row className="mb-3 align-items-center g-2">
             <Col xs={12} md={6}>
-              <h4 className="mb-0">Empresas Registradas</h4>
+              <h4 className="mb-0">Lugares</h4>
               <small className="text-muted">
-                 {import.meta.env.VITE_API_URL || ""}
+                Fuente: {import.meta.env.VITE_API_URL || "proxy /api"}
               </small>
             </Col>
 
-            {/* 🔎 Buscador */}
             <Col xs={12} md={4}>
               <InputGroup>
                 <InputGroup.Text><i className="bi bi-search" /></InputGroup.Text>
                 <Form.Control
-                  placeholder="Buscar por código, nombre, NIT, correo o dirección"
+                  placeholder="Buscar por nombre, descripción, empresa o estado"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -182,13 +157,13 @@ const EmpresasView = () => {
                 )}
               </InputGroup>
               <small className="text-muted">
-                {empresasFiltradas.length} de {empresas.length} resultados
+                {lugaresFiltrados.length} de {lugares.length} resultados
               </small>
             </Col>
 
             <Col xs={12} md={2} className="text-md-end">
               <Button variant="primary" onClick={openNew}>
-                + Nueva Empresa
+                + Nuevo Lugar
               </Button>
             </Col>
           </Row>
@@ -200,48 +175,35 @@ const EmpresasView = () => {
               <tr>
                 <th style={{ width: 110 }}>Acciones</th>
                 <th>ID</th>
-                <th>Código</th>
+                <th>Empresa</th>
+                <th>Estado</th>
                 <th>Nombre</th>
-                <th>NIT</th>
-                <th>Teléfono</th>
-                <th>Correo</th>
-                <th>Dirección</th>
-                <th>Mapa</th>
-                <th>Creación</th>
-                <th>Actualización</th>
+                <th>Descripción</th>
               </tr>
             </thead>
             <tbody>
-              {empresasFiltradas.map((emp) => (
-                <tr key={emp.idempresa}>
+              {lugaresFiltrados.map((l) => (
+                <tr key={l.idlugar}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
-                      <Button size="sm" variant="primary" onClick={() => openEdit(emp)} title="Editar">
+                      <button className="btn btn-primary btn-sm" title="Editar" onClick={() => openEdit(l)}>
                         <i className="bi bi-pencil-fill"></i>
-                      </Button>
-                      <Button size="sm" variant="danger" onClick={() => askDelete(emp)} title="Eliminar">
+                      </button>
+                      <button className="btn btn-danger btn-sm" title="Eliminar" onClick={() => askDelete(l)}>
                         <i className="bi bi-trash-fill"></i>
-                      </Button>
+                      </button>
                     </div>
                   </td>
-                  <td>{emp.idempresa}</td>
-                  <td>{emp.codigo}</td>
-                  <td>{emp.nombre}</td>
-                  <td>{emp.NIT}</td>
-                  <td>{emp.telefono}</td>
-                  <td className="text-truncate" style={{ maxWidth: "180px" }} title={emp.correo}>
-                    {emp.correo}
-                  </td>
-                  <td className="text-truncate" style={{ maxWidth: "220px" }} title={emp.direccion_formateada || emp.direccion}>
-                    {emp.direccion_formateada || emp.direccion}
-                  </td>
+                  <td>{l.idlugar}</td>
                   <td>
-                    <a href={emp.urlmapa} target="_blank" rel="noopener noreferrer">
-                      Ver mapa
-                    </a>
+                    {l.empresa_nombre || "-"}{" "}
+                    {l.empresa_codigo ? <small className="text-muted">({l.empresa_codigo})</small> : null}
                   </td>
-                  <td>{emp.fecha_creacion ? new Date(emp.fecha_creacion).toLocaleString() : "-"}</td>
-                  <td>{emp.fecha_actualizacion ? new Date(emp.fecha_actualizacion).toLocaleString() : "-"}</td>
+                  <td>{l.estado_nombre || "-"}</td>
+                  <td>{l.nombre}</td>
+                  <td className="text-truncate" style={{ maxWidth: "300px" }} title={l.descripcion}>
+                    {l.descripcion}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -249,24 +211,25 @@ const EmpresasView = () => {
         </Card.Body>
       </Card>
 
-      {/* Modal crear / editar */}
-      <EmpresaFormModal
+      <LugarFormModal
         show={showModal}
         onHide={handleClose}
         onSave={handleSave}
         loading={saving}
         error={saveError}
-        empresa={selectedEmpresa}
+        lugar={selectedLugar}
+        empresas={empresas}
+        estados={estados}
+        fallbackEstados={fallbackEstados}
       />
 
-      {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
-        title="Eliminar empresa"
+        title="Eliminar lugar"
         body={
           <>
             ¿Seguro que deseas eliminar{" "}
-            <strong>{toDelete?.nombre || `ID ${toDelete?.idempresa}`}</strong>?
+            <strong>{toDelete?.nombre || `ID ${toDelete?.idlugar}`}</strong>?
             Esta acción no se puede deshacer.
           </>
         }
@@ -278,6 +241,4 @@ const EmpresasView = () => {
       />
     </>
   );
-};
-
-export default EmpresasView;
+}

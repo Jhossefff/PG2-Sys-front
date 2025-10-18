@@ -19,8 +19,7 @@ export default function Topbar({ onToggleSidebar }) {
 
       <div className="right">
         <InputGroup className="searchbox d-none d-md-flex">
-          <InputGroup.Text><i className="bi bi-search"></i></InputGroup.Text>
-          <Form.Control placeholder="Buscar..." />
+
         </InputGroup>
 
         <Button variant="outline-secondary" className="btn-ghost" title="Notificaciones">
