@@ -1,109 +1,86 @@
+// src/views/ClientesView.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Table, Card, Row, Col, Spinner, Alert, Button, InputGroup, Form
-} from "react-bootstrap";
-import {
-  getClientes, createCliente, updateCliente, deleteCliente
-} from "../api/clientes";
+import { Card, Table, Row, Col, Button, Spinner, Alert, InputGroup, Form } from "react-bootstrap";
+import { getClientes, createCliente, updateCliente, deleteCliente } from "../api/clientes";
 import ClienteFormModal from "../components/ClienteFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 
-// normaliza para búsqueda
-const normalize = (v) =>
-  (v ?? "")
-    .toString()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "");
-
-const matchesQuery = (c, q) => {
-  if (!q) return true;
-  const nq = normalize(q);
-  const campos = [
-    c.idcliente, c.codigo, c.nombre, c.apellido, c.correo, c.telefono
-  ];
-  return campos.some((f) => normalize(f).includes(nq));
-};
+const normalize = (v) => (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 
 export default function ClientesView() {
-  const [clientes, setClientes] = useState([]);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // crear/editar
-  const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [selectedCliente, setSelectedCliente] = useState(null);
-
-  // eliminar
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [toDelete, setToDelete] = useState(null);
-  const [flash, setFlash] = useState(null);
-
-  // búsqueda
+  // buscar contra backend (?texto=)
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), 250);
+    const t = setTimeout(() => setDebounced(query), 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  const cargar = async () => {
-    setLoading(true);
-    setError(null);
+  // modal
+  const [show, setShow] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [selected, setSelected] = useState(null);
+
+  // delete
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
+
+  const [flash, setFlash] = useState(null);
+
+  const cargar = async (texto = "") => {
+    setLoading(true); setError(null);
     try {
-      const data = await getClientes();
-      setClientes(data);
-    } catch (err) {
-      setError(err.message || "Error inesperado");
-    } finally {
-      setLoading(false);
-    }
+      const data = await getClientes(texto);
+      setItems(data);
+    } catch (e) {
+      setError(e.message || "Error inesperado");
+    } finally { setLoading(false); }
   };
-  useEffect(() => { cargar(); }, []);
 
-  const clientesFiltrados = useMemo(
-    () => clientes.filter((c) => matchesQuery(c, debouncedQuery)),
-    [clientes, debouncedQuery]
-  );
+  useEffect(() => { cargar(""); }, []);
+  useEffect(() => { cargar(debounced); }, [debounced]);
 
-  const openNew = () => { setSelectedCliente(null); setSaveError(null); setShowModal(true); };
-  const openEdit = (c) => { setSelectedCliente(c); setSaveError(null); setShowModal(true); };
-  const handleClose = () => { if (!saving) setShowModal(false); };
+  const openNew = () => { setSelected(null); setSaveError(null); setShow(true); };
+  const openEdit = (it) => { setSelected(it); setSaveError(null); setShow(true); };
+  const closeModal = () => { if (!saving) setShow(false); };
 
   const handleSave = async (payload) => {
     setSaving(true); setSaveError(null);
     try {
-      if (selectedCliente) {
-        await updateCliente(selectedCliente.idcliente, payload);
-        setFlash("Cliente actualizado correctamente.");
+      if (selected) {
+        await updateCliente(selected.idcliente, payload);
+        setFlash("Cliente actualizado.");
       } else {
         await createCliente(payload);
-        setFlash("Cliente creado correctamente.");
+        setFlash("Cliente creado.");
       }
-      await cargar();
-      setShowModal(false);
-      setTimeout(() => setFlash(null), 2500);
-    } catch (err) {
-      setSaveError(err.message || "Operación fallida");
+      await cargar(debounced);
+      setShow(false);
+      setTimeout(() => setFlash(null), 2000);
+    } catch (e) {
+      setSaveError(e.message || "Operación fallida");
     } finally { setSaving(false); }
   };
 
-  const askDelete = (c) => { setToDelete(c); setConfirmOpen(true); };
+  const askDelete = (it) => { setToDelete(it); setConfirmOpen(true); };
   const cancelDelete = () => { if (!deleting) setConfirmOpen(false); };
   const confirmDelete = async () => {
-    if (!toDelete) return;
     setDeleting(true);
     try {
       await deleteCliente(toDelete.idcliente);
       setFlash("Cliente eliminado.");
-      await cargar();
+      await cargar(debounced);
       setConfirmOpen(false);
       setTimeout(() => setFlash(null), 2000);
-    } catch (err) {
-      alert(err.message || "No se pudo eliminar");
+    } catch (e) {
+      // Responde 409 con mensaje si tiene reservaciones
+      alert(e.message || "No se pudo eliminar");
     } finally { setDeleting(false); }
   };
 
@@ -124,17 +101,13 @@ export default function ClientesView() {
           <Row className="mb-3 align-items-center g-2">
             <Col xs={12} md={6}>
               <h4 className="mb-0">Clientes</h4>
-              <small className="text-muted">
-                 {import.meta.env.VITE_API_URL || ""}
-              </small>
+              <small className="text-muted">Fuente: {import.meta.env.VITE_API_URL || "proxy /api"}</small>
             </Col>
-
-            {/* Buscador */}
             <Col xs={12} md={4}>
               <InputGroup>
                 <InputGroup.Text><i className="bi bi-search" /></InputGroup.Text>
                 <Form.Control
-                  placeholder="Buscar por código, nombre, apellido, correo o teléfono"
+                  placeholder="Buscar por nombre, apellido, correo o código"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
@@ -144,15 +117,10 @@ export default function ClientesView() {
                   </Button>
                 )}
               </InputGroup>
-              <small className="text-muted">
-                {clientesFiltrados.length} de {clientes.length} resultados
-              </small>
+              <small className="text-muted">{items.length} resultado(s)</small>
             </Col>
-
             <Col xs={12} md={2} className="text-md-end">
-              <Button variant="primary" onClick={openNew}>
-                + Nuevo Cliente
-              </Button>
+              <Button variant="primary" onClick={openNew}>+ Nuevo Cliente</Button>
             </Col>
           </Row>
 
@@ -165,20 +133,20 @@ export default function ClientesView() {
           <Table striped bordered hover responsive>
             <thead className="table-dark">
               <tr>
-                <th style={{ width: 110 }}>Acciones</th>
+                <th style={{ width: 160 }}>Acciones</th>
                 <th>ID</th>
-                <th>Código</th>
                 <th>Nombre</th>
                 <th>Apellido</th>
                 <th>Correo</th>
                 <th>Teléfono</th>
-                <th>Latitud</th>
-                <th>Longitud</th>
+                <th>Código</th>
+                <th>Lat</th>
+                <th>Lng</th>
                 <th>Creación</th>
               </tr>
             </thead>
             <tbody>
-              {clientesFiltrados.map((c) => (
+              {items.map((c) => (
                 <tr key={c.idcliente}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
@@ -191,13 +159,13 @@ export default function ClientesView() {
                     </div>
                   </td>
                   <td>{c.idcliente}</td>
-                  <td>{c.codigo}</td>
                   <td>{c.nombre}</td>
                   <td>{c.apellido}</td>
-                  <td className="text-truncate" style={{ maxWidth: "180px" }} title={c.correo}>{c.correo}</td>
-                  <td>{c.telefono}</td>
-                  <td>{c.latitud}</td>
-                  <td>{c.longitud}</td>
+                  <td>{c.correo}</td>
+                  <td>{c.telefono || "-"}</td>
+                  <td>{c.codigo || "-"}</td>
+                  <td>{c.latitud ?? "-"}</td>
+                  <td>{c.longitud ?? "-"}</td>
                   <td>{c.fecha_creacion ? new Date(c.fecha_creacion).toLocaleString() : "-"}</td>
                 </tr>
               ))}
@@ -206,27 +174,19 @@ export default function ClientesView() {
         </Card.Body>
       </Card>
 
-      {/* Modal crear/editar */}
       <ClienteFormModal
-        show={showModal}
-        onHide={handleClose}
+        show={show}
+        onHide={closeModal}
         onSave={handleSave}
         loading={saving}
         error={saveError}
-        cliente={selectedCliente}
+        cliente={selected}
       />
 
-      {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
         title="Eliminar cliente"
-        body={
-          <>
-            ¿Seguro que deseas eliminar{" "}
-            <strong>{toDelete?.nombre ? `${toDelete.nombre} ${toDelete.apellido}` : `ID ${toDelete?.idcliente}`}</strong>?
-            Esta acción no se puede deshacer.
-          </>
-        }
+        body={<>¿Seguro que deseas eliminar a <strong>{toDelete?.nombre} {toDelete?.apellido}</strong>? Esta acción no se puede deshacer.</>}
         onCancel={cancelDelete}
         onConfirm={confirmDelete}
         confirmText={deleting ? "Eliminando..." : "Eliminar"}

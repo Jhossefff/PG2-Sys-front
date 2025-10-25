@@ -2,21 +2,21 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 
 const items = [
-  { to: "/overview", icon: "bi-speedometer2", label: "Overview", disabled: true },
+
   { to: "/empresas", icon: "bi-buildings", label: "Empresas" },
   { to: "/clientes", icon: "bi-people", label: "Clientes"},
   { to: "/lugares", icon: "bi-geo-alt", label: "Lugares" },
 { to: "/reservaciones", icon: "bi-journal-check", label: "Reservaciones" },
   { to: "/usuarios", icon: "bi-person-badge", label: "Usuarios" },
-  { to: "/agenda", icon: "bi-calendar-event", label: "Agenda", disabled: true },
-  { to: "/reportes", icon: "bi-graph-up", label: "Reportes", disabled: true },
+
 
 
 { to: "/formas-pago", icon: "bi-credit-card", label: "Formas de pago" },
 { to: "/estados-pago", icon: "bi-cash-coin", label: "Estados de pago" },
-
+{ to: "/facturas", icon: "bi-receipt", label: "Cobros / Facturas" },
 
 { to: "/tarifas", icon: "bi-cash-coin", label: "Tarifas" }
+
 
 ];
 

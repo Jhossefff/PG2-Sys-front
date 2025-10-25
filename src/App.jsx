@@ -10,7 +10,7 @@ import FormasPagoView from "./views/FormasPagoView.jsx";
 import EstadosPagoView from "./views/EstadosPagoView.jsx";
 
 import UsuariosView from "./views/UsuariosView.jsx";
-
+import FacturasView from "./views/FacturasView.jsx";
 function App() {
   return (
     <Routes>
@@ -21,12 +21,10 @@ function App() {
         <Route path="/lugares" element={<LugaresView />} /> 
         <Route path="/usuarios" element={<UsuariosView />} />
         <Route path="/reservaciones" element={<ReservacionesView />} />
-<Route path="/tarifas" element={<TarifasView />} /> 
-
-
-  <Route path="/formas-pago" element={<FormasPagoView />} />
-  <Route path="/estados-pago" element={<EstadosPagoView />} />
-
+        <Route path="/tarifas" element={<TarifasView />} /> 
+        <Route path="/formas-pago" element={<FormasPagoView />} />
+        <Route path="/estados-pago" element={<EstadosPagoView />} />
+       <Route path="/facturas" element={<FacturasView />} />
 
 
         {/* Rutas futuras: */}
