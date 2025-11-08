@@ -1,9 +1,18 @@
 // src/views/ClientesView.jsx
+
+
+
+
+
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, Table, Row, Col, Button, Spinner, Alert, InputGroup, Form } from "react-bootstrap";
 import { getClientes, createCliente, updateCliente, deleteCliente } from "../api/clientes";
 import ClienteFormModal from "../components/ClienteFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+
+
+
+
 
 const normalize = (v) => (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
 

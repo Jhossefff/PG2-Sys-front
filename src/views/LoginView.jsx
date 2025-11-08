@@ -1,69 +1,73 @@
-// src/views/LoginView.jsx
 import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function LoginView() {
-  const { signIn } = useAuth();               // <- EXISTE y es función
-  const navigate = useNavigate();
-  const location = useLocation();
-  const redirectTo = location.state?.from?.pathname || "/empresas";
-
-  const [correo, setCorreo] = useState("");
-  const [pwd, setPwd] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
 
-  const onSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setSubmitting(true);
     try {
-      await signIn(correo.trim(), pwd);       // usa la función del contexto
-      navigate(redirectTo, { replace: true });
-    } catch (err) {
-      setError(err?.message || "No se pudo iniciar sesión");
-    } finally {
-      setSubmitting(false);
+      await signIn(email, password);
+      navigate("/overview");
+    } catch {
+      setError("Correo o contraseña incorrectos");
     }
   };
 
   return (
-    <div className="d-flex align-items-center justify-content-center" style={{ minHeight: "100vh" }}>
-      <div className="card shadow-sm" style={{ width: 420 }}>
-        <div className="card-body">
-          <h5 className="card-title mb-3">Iniciar sesión</h5>
+    <div className="login-page dark">
+      <div className="login-card">
+        <div className="login-left">
+          <div className="login-brand">
+            <i className="bi bi-parking"></i> Park System
+          </div>
+          <h2>Bienvenido de nuevo</h2>
+          <p>Inicia sesión para continuar con la gestión del sistema.</p>
 
-          {error && <div className="alert alert-danger py-2">{error}</div>}
+          {error && <div className="alert alert-danger">{error}</div>}
 
-          <form onSubmit={onSubmit}>
-            <div className="mb-3">
-              <label className="form-label">Correo</label>
+          <form onSubmit={handleSubmit}>
+            <div className="form-group mb-3">
+              <label>Correo</label>
               <input
                 type="email"
                 className="form-control"
-                value={correo}
-                onChange={(e) => setCorreo(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ejemplo@correo.com"
                 required
-                autoFocus
               />
             </div>
 
-            <div className="mb-3">
-              <label className="form-label">Contraseña</label>
+            <div className="form-group mb-3">
+              <label>Contraseña</label>
               <input
                 type="password"
                 className="form-control"
-                value={pwd}
-                onChange={(e) => setPwd(e.target.value)}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
                 required
               />
             </div>
 
-            <button className="btn btn-primary w-100" disabled={submitting}>
-              {submitting ? "Entrando..." : "Entrar"}
+            <button type="submit" className="btn btn-login w-100">
+              Iniciar sesión
             </button>
           </form>
+        </div>
+
+        <div className="login-right">
+          {/* Logo tipo mapa o parqueo */}
+          <div className="map-logo">
+            <i className="bi bi-geo-alt-fill"></i>
+          </div>
+          <div className="circle"></div>
         </div>
       </div>
     </div>
