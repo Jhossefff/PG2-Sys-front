@@ -8,6 +8,8 @@ import {
 import { getEmpresas } from "../api/empresas";
 import TarifaFormModal from "../components/TarifaFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
 const normalize = (v) =>
   (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
@@ -22,6 +24,8 @@ const matchesQuery = (t, q) => {
 };
 
 export default function TarifasView() {
+  const scope = useEmpresaScope();
+
   const [tarifas, setTarifas] = useState([]);
   const [empresas, setEmpresas] = useState([]);
 
@@ -48,15 +52,15 @@ export default function TarifasView() {
     setError(null);
     try {
       const [ts, emps] = await Promise.all([getTarifas(), getEmpresas()]);
-      setTarifas(ts);
-      setEmpresas(emps);
+      setTarifas(applyEmpresaScope(ts, scope));
+      setEmpresas(applyEmpresaScope(emps, scope));
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); /* eslint-disable-next-line */}, [scope.isAdminEmpresa, scope.empresaId]);
 
   const tarifasFiltradas = useMemo(
     () => tarifas.filter((t) => matchesQuery(t, debouncedQuery)),
@@ -196,7 +200,6 @@ export default function TarifasView() {
         </Card.Body>
       </Card>
 
-      {/* Modal crear/editar */}
       <TarifaFormModal
         show={showModal}
         onHide={handleClose}
@@ -207,7 +210,6 @@ export default function TarifasView() {
         empresas={empresas}
       />
 
-      {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
         title="Eliminar tarifa"

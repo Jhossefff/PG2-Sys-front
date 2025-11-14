@@ -7,6 +7,9 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
 import { ROLES } from "./context/AuthContext.jsx";
 
+import DenyAdminEmpresa from "./guards/DenyAdminEmpresa.jsx";
+
+
 import LoginView from "./views/LoginView.jsx";
 import EmpresasView from "./views/EmpresasView.jsx";
 import ClientesView from "./views/ClientesView.jsx";
@@ -18,7 +21,7 @@ import EstadosPagoView from "./views/EstadosPagoView.jsx";
 import UsuariosView from "./views/UsuariosView.jsx";
 import FacturasView from "./views/FacturasView.jsx";
 
-const SOLO_STAFF = [ROLES.ADMIN, ROLES.SOPORTE];
+const SOLO_STAFF = [ROLES.ADMIN, ROLES.SOPORTE, ROLES.ADMIN_EMPRESA];
 
 function App() {
   return (
@@ -38,8 +41,25 @@ function App() {
           <Route path="/usuarios" element={<UsuariosView />} />
           <Route path="/reservaciones" element={<ReservacionesView />} />
           <Route path="/tarifas" element={<TarifasView />} />
-          <Route path="/formas-pago" element={<FormasPagoView />} />
-          <Route path="/estados-pago" element={<EstadosPagoView />} />
+
+          {/* 🔒 Bloqueadas para AdminEmpresa (#2008) */}
+          <Route
+            path="/formas-pago"
+            element={
+              <DenyAdminEmpresa redirectTo="/empresas">
+                <FormasPagoView />
+              </DenyAdminEmpresa>
+            }
+          />
+          <Route
+            path="/estados-pago"
+            element={
+              <DenyAdminEmpresa redirectTo="/empresas">
+                <EstadosPagoView />
+              </DenyAdminEmpresa>
+            }
+          />
+
           <Route path="/facturas" element={<FacturasView />} />
 
           {/* futuros */}
@@ -54,4 +74,5 @@ function App() {
     </Routes>
   );
 }
+
 export default App;

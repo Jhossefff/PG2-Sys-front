@@ -1,3 +1,4 @@
+// src/views/UsuariosView.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Table, Card, Row, Col, Spinner, Alert, Button, InputGroup, Form } from "react-bootstrap";
 import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "../api/usuarios";
@@ -5,8 +6,12 @@ import { getEmpresas } from "../api/empresas";
 import { getRoles } from "../api/roles";
 import UsuarioFormModal from "../components/UsuarioFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
-const normalize = (v) => (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+const normalize = (v) =>
+  (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+
 const matchesQuery = (u, q) => {
   if (!q) return true;
   const nq = normalize(q);
@@ -15,6 +20,8 @@ const matchesQuery = (u, q) => {
 };
 
 export default function UsuariosView() {
+  const scope = useEmpresaScope();
+
   const [usuarios, setUsuarios] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -47,28 +54,43 @@ export default function UsuariosView() {
     setError(null);
     try {
       const [us, emps, rols] = await Promise.all([getUsuarios(), getEmpresas(), getRoles()]);
-      setUsuarios(us);
-      setEmpresas(emps);
-      setRoles(rols);
+      setUsuarios(applyEmpresaScope(us, scope));
+      setEmpresas(applyEmpresaScope(emps, scope));
+      setRoles(rols); // roles no necesariamente por empresa
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { cargar(); }, []);
+
+  useEffect(() => {
+    cargar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.isAdminEmpresa, scope.empresaId]);
 
   const usuariosFiltrados = useMemo(
     () => usuarios.filter((u) => matchesQuery(u, debouncedQuery)),
     [usuarios, debouncedQuery]
   );
 
-  const openNew = () => { setSelectedUsuario(null); setSaveError(null); setShowModal(true); };
-  const openEdit = (u) => { setSelectedUsuario(u); setSaveError(null); setShowModal(true); };
-  const handleClose = () => { if (!saving) setShowModal(false); };
+  const openNew = () => {
+    setSelectedUsuario(null);
+    setSaveError(null);
+    setShowModal(true);
+  };
+  const openEdit = (u) => {
+    setSelectedUsuario(u);
+    setSaveError(null);
+    setShowModal(true);
+  };
+  const handleClose = () => {
+    if (!saving) setShowModal(false);
+  };
 
   const handleSave = async (payload) => {
-    setSaving(true); setSaveError(null);
+    setSaving(true);
+    setSaveError(null);
     try {
       if (selectedUsuario) {
         await updateUsuario(selectedUsuario.idusuario, payload);
@@ -82,12 +104,18 @@ export default function UsuariosView() {
       setTimeout(() => setFlash(null), 2500);
     } catch (err) {
       setSaveError(err.message || "Operación fallida");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  // eliminar
-  const askDelete = (u) => { setToDelete(u); setConfirmOpen(true); };
-  const cancelDelete = () => { if (!deleting) setConfirmOpen(false); };
+  const askDelete = (u) => {
+    setToDelete(u);
+    setConfirmOpen(true);
+  };
+  const cancelDelete = () => {
+    if (!deleting) setConfirmOpen(false);
+  };
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
@@ -99,7 +127,9 @@ export default function UsuariosView() {
       setTimeout(() => setFlash(null), 2000);
     } catch (err) {
       alert(err.message || "No se pudo eliminar");
-    } finally { setDeleting(false); }
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -119,19 +149,27 @@ export default function UsuariosView() {
           <Row className="mb-3 align-items-center g-2">
             <Col xs={12} md={6}>
               <h4 className="mb-0">Usuarios</h4>
-              <small className="text-muted">Fuente: {import.meta.env.VITE_API_URL || "proxy /api"}</small>
+              <small className="text-muted">
+                Fuente: {import.meta.env.VITE_API_URL || "proxy /api"}
+              </small>
             </Col>
 
             <Col xs={12} md={4}>
               <InputGroup>
-                <InputGroup.Text><i className="bi bi-search" /></InputGroup.Text>
+                <InputGroup.Text>
+                  <i className="bi bi-search" />
+                </InputGroup.Text>
                 <Form.Control
                   placeholder="Buscar por nombre, correo, teléfono o código"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
                 {query && (
-                  <Button variant="outline-secondary" onClick={() => setQuery("")} title="Limpiar">
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => setQuery("")}
+                    title="Limpiar"
+                  >
                     <i className="bi bi-x-lg" />
                   </Button>
                 )}
@@ -142,11 +180,17 @@ export default function UsuariosView() {
             </Col>
 
             <Col xs={12} md={2} className="text-md-end">
-              <Button variant="primary" onClick={openNew}>+ Nuevo Usuario</Button>
+              <Button variant="primary" onClick={openNew}>
+                + Nuevo Usuario
+              </Button>
             </Col>
           </Row>
 
-          {flash && <Alert variant="success" onClose={() => setFlash(null)} dismissible>{flash}</Alert>}
+          {flash && (
+            <Alert variant="success" onClose={() => setFlash(null)} dismissible>
+              {flash}
+            </Alert>
+          )}
 
           <Table striped bordered hover responsive>
             <thead className="table-dark">
@@ -165,39 +209,66 @@ export default function UsuariosView() {
               </tr>
             </thead>
             <tbody>
-              {usuariosFiltrados.map(u => (
+              {usuariosFiltrados.map((u) => (
                 <tr key={u.idusuario}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
-                      <button className="btn btn-primary btn-sm" title="Editar" onClick={() => openEdit(u)}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        title="Editar"
+                        onClick={() => openEdit(u)}
+                      >
                         <i className="bi bi-pencil-fill"></i>
                       </button>
-                      <button className="btn btn-danger btn-sm" title="Eliminar" onClick={() => askDelete(u)}>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        title="Eliminar"
+                        onClick={() => askDelete(u)}
+                      >
                         <i className="bi bi-trash-fill"></i>
                       </button>
                     </div>
                   </td>
                   <td>{u.idusuario}</td>
                   <td>
-                    {/* Muestra el id y tratamos de mapear el nombre del rol si coincide */}
                     {(() => {
-                      const r = roles.find(x => Number(x.idrol) === Number(u.idrol));
+                      const r = roles.find(
+                        (x) => Number(x.idrol) === Number(u.idrol)
+                      );
                       return r ? `${r.nombre} (#${u.idrol})` : `#${u.idrol}`;
                     })()}
                   </td>
                   <td>
                     {(() => {
-                      const e = empresas.find(x => Number(x.idempresa) === Number(u.idempresa));
-                      return e ? `${e.nombre}${e.codigo ? ` (${e.codigo})` : ""}` : `#${u.idempresa}`;
+                      const e = empresas.find(
+                        (x) => Number(x.idempresa) === Number(u.idempresa)
+                      );
+                      return e
+                        ? `${e.nombre}${e.codigo ? ` (${e.codigo})` : ""}`
+                        : `#${u.idempresa}`;
                     })()}
                   </td>
                   <td>{[u.nombre, u.apellido].filter(Boolean).join(" ")}</td>
-                  <td className="text-truncate" style={{ maxWidth: "220px" }} title={u.correo}>{u.correo}</td>
+                  <td
+                    className="text-truncate"
+                    style={{ maxWidth: "220px" }}
+                    title={u.correo}
+                  >
+                    {u.correo}
+                  </td>
                   <td>{u.NIT}</td>
                   <td>{u.telefono}</td>
                   <td>{u.codigo}</td>
-                  <td>{u.fecha_creacion ? new Date(u.fecha_creacion).toLocaleString() : "-"}</td>
-                  <td>{u.fecha_actualizacion ? new Date(u.fecha_actualizacion).toLocaleString() : "-"}</td>
+                  <td>
+                    {u.fecha_creacion
+                      ? new Date(u.fecha_creacion).toLocaleString()
+                      : "-"}
+                  </td>
+                  <td>
+                    {u.fecha_actualizacion
+                      ? new Date(u.fecha_actualizacion).toLocaleString()
+                      : "-"}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -205,7 +276,6 @@ export default function UsuariosView() {
         </Card.Body>
       </Card>
 
-      {/* Modal crear/editar */}
       <UsuarioFormModal
         show={showModal}
         onHide={handleClose}
@@ -217,14 +287,18 @@ export default function UsuariosView() {
         empresas={empresas}
       />
 
-      {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
         title="Eliminar usuario"
         body={
           <>
             ¿Seguro que deseas eliminar a{" "}
-            <strong>{selectedUsuario ? `${selectedUsuario?.nombre} ${selectedUsuario?.apellido}` : `ID ${toDelete?.idusuario}`}</strong>?
+            <strong>
+              {selectedUsuario
+                ? `${selectedUsuario?.nombre} ${selectedUsuario?.apellido}`
+                : `ID ${toDelete?.idusuario}`}
+            </strong>
+            ?
             Esta acción no se puede deshacer.
           </>
         }

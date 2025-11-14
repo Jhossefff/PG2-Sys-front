@@ -1,6 +1,8 @@
+// src/components/Sidebar.jsx
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useEmpresaScope } from "../hooks/useEmpresaScope.js"; // <— agregado
 import "./sidebar.css";
 
 const items = [
@@ -18,7 +20,13 @@ const items = [
 
 export default function Sidebar() {
   const { signOut, user } = useAuth();
+  const { isAdminEmpresa } = useEmpresaScope(); // <— agregado
   const [open, setOpen] = useState(true);
+
+  // Filtra solo para AdminEmpresa (2008)
+  const visibleItems = isAdminEmpresa
+    ? items.filter((it) => it.to !== "/formas-pago" && it.to !== "/estados-pago")
+    : items;
 
   return (
     <>
@@ -40,7 +48,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="sidebar-nav mt-3">
-          {items.map((it) => (
+          {visibleItems.map((it) => (
             <NavLink
               key={it.to}
               to={it.to}

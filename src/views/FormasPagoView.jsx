@@ -1,11 +1,14 @@
-// src/views/FormasPagoView.jsx
 import React, { useEffect, useState } from "react";
 import { Card, Table, Row, Col, Button, Spinner, Alert } from "react-bootstrap";
 import { getFormasPago, createFormaPago, updateFormaPago, deleteFormaPago } from "../api/formasPago";
 import FormaPagoFormModal from "../components/FormaPagoFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
 export default function FormasPagoView() {
+  const scope = useEmpresaScope();
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,12 +28,12 @@ export default function FormasPagoView() {
     setLoading(true); setError(null);
     try {
       const data = await getFormasPago();
-      setItems(data);
+      setItems(applyEmpresaScope(data, scope));
     } catch (e) {
       setError(e.message || "Error inesperado");
     } finally { setLoading(false); }
   };
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); /* eslint-disable-next-line */}, [scope.isAdminEmpresa, scope.empresaId]);
 
   const openNew = () => { setSelected(null); setSaveError(null); setShow(true); };
   const openEdit = (it) => { setSelected(it); setSaveError(null); setShow(true); };

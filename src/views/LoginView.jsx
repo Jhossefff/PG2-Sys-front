@@ -63,7 +63,6 @@ export default function LoginView() {
         </div>
 
         <div className="login-right">
-          {/* Logo tipo mapa o parqueo */}
           <div className="map-logo">
             <i className="bi bi-geo-alt-fill"></i>
           </div>

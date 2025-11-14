@@ -20,7 +20,7 @@ export default function ReservacionEditarModal({
 }) {
   const [form, setForm] = useState({
     idusuario: "", idempresa: "", idtarifa: "", idcliente: "", idlugar: "",
-    estado_reservacion: "pendiente", hora_entrada: "", hora_salida: "",
+    estado_reservacion: "confirmado", hora_entrada: "", hora_salida: "",
   });
   const [validated, setValidated] = useState(false);
 
@@ -40,7 +40,7 @@ export default function ReservacionEditarModal({
         idtarifa: reservacion.idtarifa ?? "",
         idcliente: reservacion.idcliente ?? "",
         idlugar: reservacion.idlugar ?? "",
-        estado_reservacion: reservacion.estado_reservacion ?? "pendiente",
+        estado_reservacion: reservacion.estado_reservacion ?? "confirmado",
         hora_entrada: reservacion.hora_entrada ? toInputLocal(reservacion.hora_entrada) : "",
         hora_salida: reservacion.hora_salida ? toInputLocal(reservacion.hora_salida) : "",
       });
@@ -61,7 +61,7 @@ export default function ReservacionEditarModal({
       idtarifa: Number(form.idtarifa),
       idcliente: Number(form.idcliente),
       idlugar: Number(form.idlugar),
-      estado_reservacion: form.estado_reservacion || "pendiente",
+      estado_reservacion: form.estado_reservacion || "confirmado",
       hora_entrada: toBackendDateTime(form.hora_entrada),
       hora_salida: form.hora_salida ? toBackendDateTime(form.hora_salida) : null,
     });
@@ -136,7 +136,7 @@ export default function ReservacionEditarModal({
               <Form.Group>
                 <Form.Label>Estado</Form.Label>
                 <Form.Select name="estado_reservacion" value={form.estado_reservacion} onChange={handleChange}>
-                  {["pendiente", "confirmado", "cancelado", "completado"].map(s => <option key={s} value={s}>{s}</option>)}
+                  {["confirmado", "completado"].map(s => <option key={s} value={s}>{s}</option>)}
                 </Form.Select>
               </Form.Group>
             </Col>

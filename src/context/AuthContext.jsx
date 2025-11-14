@@ -5,6 +5,7 @@ const API = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 export const ROLES = {
   ADMIN: 2007,    // Ajusta a tus ids reales
+   ADMIN_EMPRESA: 2008, 
   SOPORTE: 2009,
   // agrega más si tienes
 };

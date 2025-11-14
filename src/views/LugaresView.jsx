@@ -9,6 +9,8 @@ import { getEmpresas } from "../api/empresas";
 import { getEstados } from "../api/estados";
 import LugarFormModal from "../components/LugarFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
 const normalize = (v) =>
   (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
@@ -25,6 +27,8 @@ const matchesQuery = (l, q) => {
 };
 
 export default function LugaresView() {
+  const scope = useEmpresaScope();
+
   const [lugares, setLugares] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [estados, setEstados] = useState([]);
@@ -56,16 +60,16 @@ export default function LugaresView() {
         getEmpresas(),
         getEstados()
       ]);
-      setLugares(lug);
-      setEmpresas(emp);
-      setEstados(est);
+      setLugares(applyEmpresaScope(lug, scope));
+      setEmpresas(applyEmpresaScope(emp, scope));
+      setEstados(applyEmpresaScope(est, scope));
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
       setLoading(false);
     }
   };
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); /* eslint-disable-next-line */}, [scope.isAdminEmpresa, scope.empresaId]);
 
   const fallbackEstados = useMemo(() => {
     const map = new Map();

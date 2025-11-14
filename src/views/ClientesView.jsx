@@ -1,27 +1,33 @@
 // src/views/ClientesView.jsx
-
-
-
-
-
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Table, Row, Col, Button, Spinner, Alert, InputGroup, Form } from "react-bootstrap";
-import { getClientes, createCliente, updateCliente, deleteCliente } from "../api/clientes";
+import {
+  Card, Table, Row, Col, Button, Spinner, Alert, InputGroup, Form
+} from "react-bootstrap";
+import {
+  getClientes, createCliente, updateCliente, deleteCliente
+} from "../api/clientes";
 import ClienteFormModal from "../components/ClienteFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope"; // lo dejamos por si lo usas en el layout
 
-
-
-
-
+// normaliza texto para búsquedas tolerantes a mayúsculas/acentos
 const normalize = (v) => (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+const matchesQuery = (c, q) => {
+  if (!q) return true;
+  const nq = normalize(q);
+  const campos = [c.idcliente, c.nombre, c.apellido, c.correo, c.codigo];
+  return campos.some((f) => normalize(f).includes(nq));
+};
 
 export default function ClientesView() {
+  // Nota: ya NO aplicamos filtros por empresa aquí
+  useEmpresaScope(); // opcional, por si el layout depende del scope
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // buscar contra backend (?texto=)
+  // buscar (debounce)
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   useEffect(() => {
@@ -43,17 +49,23 @@ export default function ClientesView() {
   const [flash, setFlash] = useState(null);
 
   const cargar = async (texto = "") => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
-      const data = await getClientes(texto);
+      const data = await getClientes(texto); // trae TODO como admin/soporte
       setItems(data);
     } catch (e) {
       setError(e.message || "Error inesperado");
     } finally { setLoading(false); }
   };
 
-  useEffect(() => { cargar(""); }, []);
-  useEffect(() => { cargar(debounced); }, [debounced]);
+  useEffect(() => { cargar(""); }, []);                 // primera carga
+  useEffect(() => { cargar(debounced); }, [debounced]); // búsqueda
+
+  const itemsFiltrados = useMemo(
+    () => items.filter((c) => matchesQuery(c, debounced)),
+    [items, debounced]
+  );
 
   const openNew = () => { setSelected(null); setSaveError(null); setShow(true); };
   const openEdit = (it) => { setSelected(it); setSaveError(null); setShow(true); };
@@ -62,6 +74,7 @@ export default function ClientesView() {
   const handleSave = async (payload) => {
     setSaving(true); setSaveError(null);
     try {
+      // IMPORTANTE: ya no forzamos idempresa; se envía tal cual llega del formulario
       if (selected) {
         await updateCliente(selected.idcliente, payload);
         setFlash("Cliente actualizado.");
@@ -88,7 +101,7 @@ export default function ClientesView() {
       setConfirmOpen(false);
       setTimeout(() => setFlash(null), 2000);
     } catch (e) {
-      // Responde 409 con mensaje si tiene reservaciones
+      // El backend puede responder 409 si tiene reservaciones
       alert(e.message || "No se pudo eliminar");
     } finally { setDeleting(false); }
   };
@@ -126,7 +139,7 @@ export default function ClientesView() {
                   </Button>
                 )}
               </InputGroup>
-              <small className="text-muted">{items.length} resultado(s)</small>
+              <small className="text-muted">{itemsFiltrados.length} resultado(s)</small>
             </Col>
             <Col xs={12} md={2} className="text-md-end">
               <Button variant="primary" onClick={openNew}>+ Nuevo Cliente</Button>
@@ -155,7 +168,7 @@ export default function ClientesView() {
               </tr>
             </thead>
             <tbody>
-              {items.map((c) => (
+              {itemsFiltrados.map((c) => (
                 <tr key={c.idcliente}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
@@ -195,7 +208,12 @@ export default function ClientesView() {
       <ConfirmDialog
         show={confirmOpen}
         title="Eliminar cliente"
-        body={<>¿Seguro que deseas eliminar a <strong>{toDelete?.nombre} {toDelete?.apellido}</strong>? Esta acción no se puede deshacer.</>}
+        body={
+          <>
+            ¿Seguro que deseas eliminar a <strong>{toDelete?.nombre} {toDelete?.apellido}</strong>?
+            Esta acción no se puede deshacer.
+          </>
+        }
         onCancel={cancelDelete}
         onConfirm={confirmDelete}
         confirmText={deleting ? "Eliminando..." : "Eliminar"}

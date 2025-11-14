@@ -1,12 +1,20 @@
 // src/api/reservaciones.js
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
+/* Utilidad para leer mensajes de error del backend sin romper si no viene JSON */
+async function readError(res, fallback) {
+  try {
+    const data = await res.json();
+    return data?.error || data?.message || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function getReservaciones() {
   const res = await fetch(`${BASE}/reservaciones`);
   if (!res.ok) {
-    let msg = "Error al obtener las reservaciones";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al obtener las reservaciones"));
   }
   return res.json();
 }
@@ -14,66 +22,67 @@ export async function getReservaciones() {
 export async function getReservacionById(id) {
   const res = await fetch(`${BASE}/reservaciones/${id}`);
   if (!res.ok) {
-    let msg = "Error al obtener la reservación";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al obtener la reservación"));
   }
   return res.json();
 }
 
-// POST: crea reservación “abierta”
+/**
+ * Crea una reservación.
+ * payload esperado por tu backend:
+ * { idusuario, idempresa, idtarifa, idcliente, idlugar, estado_reservacion, hora_entrada, hora_salida (nullable) }
+ */
 export async function createReservacion(payload) {
-  // payload esperado por tu backend:
-  // { idusuario, idempresa, idtarifa, idcliente, idlugar, estado_reservacion, hora_entrada, hora_salida: null }
   const res = await fetch(`${BASE}/reservaciones`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    let msg = "Error al crear la reservación";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al crear la reservación"));
   }
   return res.json();
 }
 
-// PUT: cerrar (enviar solo hora_salida y estado_reservacion)
-export async function closeReservacion(idreservacion, payload) {
-  const res = await fetch(`${BASE}/reservaciones/${idreservacion}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload), // { hora_salida, estado_reservacion }
+/**
+ * Cierra/completa una reservación.
+ * No envía body: el backend setea estado='completado' y hora_salida=SYSDATETIME().
+ */
+export async function closeReservacion(idreservacion) {
+  const res = await fetch(`${BASE}/reservaciones/${idreservacion}/cerrar`, {
+    method: "PATCH",
   });
   if (!res.ok) {
-    let msg = "Error al cerrar la reservación";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al cerrar la reservación"));
   }
   return res.json();
 }
 
-// PUT: editar completa (enviar objeto completo)
+/** Actualiza campos de una reservación (PUT total o parcial según tu backend). */
 export async function updateReservacion(idreservacion, payload) {
   const res = await fetch(`${BASE}/reservaciones/${idreservacion}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload), // objeto completo
+    body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    let msg = "Error al actualizar la reservación";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al actualizar la reservación"));
   }
   return res.json();
 }
 
+/** Elimina una reservación. */
 export async function deleteReservacion(idreservacion) {
-  const res = await fetch(`${BASE}/reservaciones/${idreservacion}`, { method: "DELETE" });
+  const res = await fetch(`${BASE}/reservaciones/${idreservacion}`, {
+    method: "DELETE",
+  });
   if (!res.ok) {
-    let msg = "Error al eliminar la reservación";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+    throw new Error(await readError(res, "Error al eliminar la reservación"));
   }
-  try { return await res.json(); } catch { return { ok: true }; }
+  // algunos backends devuelven 204 sin body
+  try {
+    return await res.json();
+  } catch {
+    return { ok: true };
+  }
 }

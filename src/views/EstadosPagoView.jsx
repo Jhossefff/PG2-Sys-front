@@ -1,11 +1,14 @@
-// src/views/EstadosPagoView.jsx
 import React, { useEffect, useState } from "react";
 import { Card, Table, Row, Col, Button, Spinner, Alert } from "react-bootstrap";
 import { getEstadosPago, createEstadoPago, updateEstadoPago, deleteEstadoPago } from "../api/estadosPago";
 import EstadoPagoFormModal from "../components/EstadoPagoFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
 export default function EstadosPagoView() {
+  const scope = useEmpresaScope();
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -25,12 +28,12 @@ export default function EstadosPagoView() {
     setLoading(true); setError(null);
     try {
       const data = await getEstadosPago();
-      setItems(data);
+      setItems(applyEmpresaScope(data, scope));
     } catch (e) {
       setError(e.message || "Error inesperado");
     } finally { setLoading(false); }
   };
-  useEffect(() => { cargar(); }, []);
+  useEffect(() => { cargar(); /* eslint-disable-next-line */}, [scope.isAdminEmpresa, scope.empresaId]);
 
   const openNew = () => { setSelected(null); setSaveError(null); setShow(true); };
   const openEdit = (it) => { setSelected(it); setSaveError(null); setShow(true); };

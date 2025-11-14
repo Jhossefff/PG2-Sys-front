@@ -8,8 +8,10 @@ import {
 } from "../api/empresas";
 import EmpresaFormModal from "../components/EmpresaFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { useEmpresaScope } from "../hooks/useEmpresaScope.js";
+import { applyEmpresaScope } from "../utils/scope.js";
 
-// normaliza texto para búsquedas tolerantes a mayúsculas/acentos
+// normaliza texto para búsquedas
 const normalize = (v) =>
   (v ?? "")
     .toString()
@@ -53,6 +55,8 @@ const EmpresasView = () => {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
+  const scope = useEmpresaScope(); // {isAdminEmpresa, empresaId}
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query), 250);
     return () => clearTimeout(t);
@@ -63,7 +67,8 @@ const EmpresasView = () => {
     setError(null);
     try {
       const data = await getEmpresas();
-      setEmpresas(data);
+      const scoped = applyEmpresaScope(data, scope);
+      setEmpresas(scoped);
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
@@ -73,22 +78,21 @@ const EmpresasView = () => {
 
   useEffect(() => {
     cargar();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope.isAdminEmpresa, scope.empresaId]);
 
-  // filtra en memoria
   const empresasFiltradas = useMemo(
     () => empresas.filter((e) => matchesQuery(e, debouncedQuery)),
     [empresas, debouncedQuery]
   );
 
-  // crear
   const openNew = () => {
+    if (scope.isAdminEmpresa) return; // AdminEmpresa NO crea
     setSelectedEmpresa(null);
     setSaveError(null);
     setShowModal(true);
   };
 
-  // editar
   const openEdit = (emp) => {
     setSelectedEmpresa(emp);
     setSaveError(null);
@@ -107,6 +111,7 @@ const EmpresasView = () => {
         await updateEmpresa(selectedEmpresa.idempresa, payload);
         setFlash("Empresa actualizada correctamente.");
       } else {
+        if (scope.isAdminEmpresa) throw new Error("No autorizado.");
         await createEmpresa(payload);
         setFlash("Empresa creada correctamente.");
       }
@@ -120,8 +125,8 @@ const EmpresasView = () => {
     }
   };
 
-  // eliminar
   const askDelete = (emp) => {
+    if (scope.isAdminEmpresa) return; // AdminEmpresa NO elimina
     setToDelete(emp);
     setConfirmOpen(true);
   };
@@ -162,11 +167,10 @@ const EmpresasView = () => {
             <Col xs={12} md={6}>
               <h4 className="mb-0">Empresas Registradas</h4>
               <small className="text-muted">
-                 {import.meta.env.VITE_API_URL || ""}
+                {import.meta.env.VITE_API_URL || ""}
               </small>
             </Col>
 
-            {/* 🔎 Buscador */}
             <Col xs={12} md={4}>
               <InputGroup>
                 <InputGroup.Text><i className="bi bi-search" /></InputGroup.Text>
@@ -187,9 +191,11 @@ const EmpresasView = () => {
             </Col>
 
             <Col xs={12} md={2} className="text-md-end">
-              <Button variant="primary" onClick={openNew}>
-                + Nueva Empresa
-              </Button>
+              {!scope.isAdminEmpresa && (
+                <Button variant="primary" onClick={openNew}>
+                  + Nueva Empresa
+                </Button>
+              )}
             </Col>
           </Row>
 
@@ -219,9 +225,11 @@ const EmpresasView = () => {
                       <Button size="sm" variant="primary" onClick={() => openEdit(emp)} title="Editar">
                         <i className="bi bi-pencil-fill"></i>
                       </Button>
-                      <Button size="sm" variant="danger" onClick={() => askDelete(emp)} title="Eliminar">
-                        <i className="bi bi-trash-fill"></i>
-                      </Button>
+                      {!scope.isAdminEmpresa && (
+                        <Button size="sm" variant="danger" onClick={() => askDelete(emp)} title="Eliminar">
+                          <i className="bi bi-trash-fill"></i>
+                        </Button>
+                      )}
                     </div>
                   </td>
                   <td>{emp.idempresa}</td>
@@ -249,7 +257,6 @@ const EmpresasView = () => {
         </Card.Body>
       </Card>
 
-      {/* Modal crear / editar */}
       <EmpresaFormModal
         show={showModal}
         onHide={handleClose}
@@ -259,7 +266,6 @@ const EmpresasView = () => {
         empresa={selectedEmpresa}
       />
 
-      {/* Confirmación eliminar */}
       <ConfirmDialog
         show={confirmOpen}
         title="Eliminar empresa"

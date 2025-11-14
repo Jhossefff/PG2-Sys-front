@@ -1,4 +1,3 @@
-// src/views/FacturasView.jsx
 import React, { useEffect, useState } from "react";
 import { Card, Table, Row, Col, Button, Spinner, Alert, Form } from "react-bootstrap";
 import { getFacturas, createFactura, updateFactura, deleteFactura, getFacturaById } from "../api/facturas";
@@ -10,10 +9,14 @@ import { getEstadosPago } from "../api/estadosPago";
 import FacturaFormModal from "../components/FacturaFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { printFacturaHTML } from "../utils/printFactura";
+import { useEmpresaScope } from "../hooks/useEmpresaScope";
+import { applyEmpresaScope } from "../utils/scope";
 
 const fmt = (n) => (n == null ? "-" : Number(n).toFixed(2));
 
 export default function FacturasView() {
+  const scope = useEmpresaScope();
+
   const [facturas, setFacturas] = useState([]);
   const [usuarios, setUsuarios] = useState([]);
   const [clientes, setClientes] = useState([]);
@@ -53,7 +56,12 @@ export default function FacturasView() {
     const [us, cl, rv, fp, ep] = await Promise.all([
       getUsuarios(), getClientes(), getReservaciones(), getFormasPago(), getEstadosPago(),
     ]);
-    setUsuarios(us); setClientes(cl); setReservaciones(rv); setFormasPago(fp); setEstadosPago(ep);
+    // Catálogos también filtrados por empresa si aplica
+    setUsuarios(applyEmpresaScope(us, scope));
+    setClientes(applyEmpresaScope(cl, scope));
+    setReservaciones(applyEmpresaScope(rv, scope));
+    setFormasPago(applyEmpresaScope(fp, scope));
+    setEstadosPago(applyEmpresaScope(ep, scope));
   };
 
   const cargar = async () => {
@@ -67,7 +75,7 @@ export default function FacturasView() {
         desde: filtros.desde || undefined,
         hasta: filtros.hasta || undefined,
       });
-      setFacturas(data);
+      setFacturas(applyEmpresaScope(data, scope));
     } catch (e) {
       setError(e.message || "Error inesperado");
     } finally {
@@ -75,14 +83,13 @@ export default function FacturasView() {
     }
   };
 
-  useEffect(() => { cargar(); }, []); // inicia
+  useEffect(() => { cargar(); /* eslint-disable-next-line */}, [scope.isAdminEmpresa, scope.empresaId]);
   const aplicarFiltros = () => cargar();
 
   const openNew = () => { setEdit(null); setSaveError(null); setShow(true); };
   const openEdit = (f) => { setEdit(f); setSaveError(null); setShow(true); };
   const closeModal = () => { if (!saving) setShow(false); };
 
-  // => nuevo backend: simplemente enviamos los campos; el trigger hace el cálculo
   const handleSave = async (payload) => {
     setSaving(true); setSaveError(null);
     try {
@@ -120,8 +127,8 @@ export default function FacturasView() {
   const handlePrint = async (row) => {
     try {
       setPrinting(true);
-      const full = await getFacturaById(row.idfactura); // obtener con joins/labels
-      printFacturaHTML(full); // abre ventana y lanza print()
+      const full = await getFacturaById(row.idfactura);
+      printFacturaHTML(full);
     } catch (e) {
       alert(e.message || "No se pudo generar la impresión.");
     } finally {

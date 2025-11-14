@@ -2,10 +2,12 @@
 import React, { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useEmpresaScope } from "../hooks/useEmpresaScope.js";
 
 export default function DashboardLayout() {
   const [open, setOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { isAdminEmpresa } = useEmpresaScope();
   const nav = useNavigate();
 
   const doLogout = async () => {
@@ -24,7 +26,6 @@ export default function DashboardLayout() {
             <i className="bi bi-parking"></i>
             <span>Park</span>
           </div>
-          {/* toggle solo visible en <992px */}
           <button
             className="btn btn-sm toggle-btn d-lg-none"
             onClick={() => setOpen(false)}
@@ -91,7 +92,6 @@ export default function DashboardLayout() {
                 </div>
               </div>
 
-              {/* botón SIEMPRE visible (rojo/blanco) */}
               <button
                 type="button"
                 className="btn btn-logout w-100"
@@ -105,16 +105,13 @@ export default function DashboardLayout() {
         </div>
       </aside>
 
-      {/* Backdrop para móvil */}
       <button
         className={`sidebar-backdrop d-lg-none ${open ? "show" : ""}`}
         onClick={() => setOpen(false)}
         aria-label="Ocultar menú"
       />
 
-      {/* ===== Content ===== */}
       <main className="app-content">
-        {/* topbar */}
         <div className="topbar sticky-top d-flex align-items-center gap-2 px-3 py-2">
           <button
             className="btn btn-outline-secondary d-lg-none"
