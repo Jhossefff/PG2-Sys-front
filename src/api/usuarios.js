@@ -1,14 +1,33 @@
 // src/api/usuarios.js
 const BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
-export async function getUsuarios() {
-  const res = await fetch(`${BASE}/usuarios`);
+// Función reutilizable para manejar respuestas de fetch
+async function handleResponse(res, defaultMsg) {
+  let data = null;
+
+  // Intentar leer JSON (si no hay cuerpo, simplemente queda en null)
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  // Si el status NO es 2xx, lo consideramos error
   if (!res.ok) {
-    let msg = "Error al obtener los usuarios";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
+    const msg =
+      (data && (data.error || data.message)) ||
+      defaultMsg ||
+      `Error HTTP ${res.status}`;
     throw new Error(msg);
   }
-  return res.json();
+
+  // Status 2xx → devolvemos el JSON (o null si no había cuerpo)
+  return data;
+}
+
+export async function getUsuarios() {
+  const res = await fetch(`${BASE}/usuarios`);
+  return handleResponse(res, "Error al obtener los usuarios");
 }
 
 export async function createUsuario(payload) {
@@ -18,35 +37,31 @@ export async function createUsuario(payload) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    let msg = "Error al crear el usuario";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+
+  // Solo lanzará error si el status NO es 2xx
+  return handleResponse(res, "Error al crear el usuario");
 }
 
 export async function updateUsuario(idusuario, payload) {
-  // Si NO quieres cambiar contraseña, NO la incluyas en payload
   const res = await fetch(`${BASE}/usuarios/${idusuario}`, {
     method: "PUT", // o PATCH si tu backend usa parches
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (!res.ok) {
-    let msg = "Error al actualizar el usuario";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
-  }
-  return res.json();
+
+  return handleResponse(res, "Error al actualizar el usuario");
 }
 
 export async function deleteUsuario(idusuario) {
-  const res = await fetch(`${BASE}/usuarios/${idusuario}`, { method: "DELETE" });
-  if (!res.ok) {
-    let msg = "Error al eliminar el usuario";
-    try { const err = await res.json(); msg = err?.message || msg; } catch {}
-    throw new Error(msg);
+  const res = await fetch(`${BASE}/usuarios/${idusuario}`, {
+    method: "DELETE",
+  });
+
+  // Algunos DELETE devuelven 204 sin cuerpo
+  if (res.status === 204) {
+    return { ok: true };
   }
-  try { return await res.json(); } catch { return { ok: true }; }
+
+  await handleResponse(res, "Error al eliminar el usuario");
+  return { ok: true };
 }

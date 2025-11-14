@@ -4,15 +4,20 @@ import { Navigate } from "react-router-dom";
 import { useAuth, ROLES } from "../context/AuthContext.jsx";
 
 /**
- * Niega acceso a usuarios con rol AdminEmpresa (#2008).
+ * Niega acceso a ciertos roles:
+ * - AdminEmpresa (#2008)
+ * - SupervisorEmpresa (#2010)
+ *
  * Uso:
- *  <DenyAdminEmpresa redirectTo="/empresas"><MiVista /></DenyAdminEmpresa>
+ *  <DenyAdminEmpresa redirectTo="/empresas">
+ *      <MiVista />
+ *  </DenyAdminEmpresa>
  */
 export default function DenyAdminEmpresa({ children, redirectTo = "/empresas" }) {
-  const { user } = useAuth?.() || {};
+  const { user } = useAuth();
 
-  // Intenta leer el rol del usuario con varias claves comunes por si cambian nombres
-  const roleId =
+  // Intentar obtener el rol con diferentes posibles llaves
+  const rawRole =
     user?.idrol ??
     user?.rolId ??
     user?.roleId ??
@@ -20,11 +25,19 @@ export default function DenyAdminEmpresa({ children, redirectTo = "/empresas" })
     user?.role ??
     null;
 
-  // Si coincide con Admin Empresa, redirige
-  if (Number(roleId) === Number(ROLES.ADMIN_EMPRESA)) {
+  const roleId =
+    rawRole == null
+      ? null
+      : typeof rawRole === "string" && /^\d+$/.test(rawRole)
+      ? Number(rawRole)
+      : Number(rawRole);
+
+  // Roles que NO deben acceder
+  const deniedRoles = [ROLES.ADMIN_EMPRESA, ROLES.SUPERVISOR_EMPRESA];
+
+  if (deniedRoles.includes(roleId)) {
     return <Navigate to={redirectTo} replace />;
   }
 
-  // Caso contrario, permite ver el contenido
   return <>{children}</>;
 }

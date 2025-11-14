@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useEmpresaScope } from "../hooks/useEmpresaScope.js"; // <— agregado
+import { useEmpresaScope } from "../hooks/useEmpresaScope.js";
 import "./sidebar.css";
 
 const items = [
@@ -20,13 +20,24 @@ const items = [
 
 export default function Sidebar() {
   const { signOut, user } = useAuth();
-  const { isAdminEmpresa } = useEmpresaScope(); // <— agregado
+  const { isAdminEmpresa, isSupervisorEmpresa } = useEmpresaScope();
   const [open, setOpen] = useState(true);
 
-  // Filtra solo para AdminEmpresa (2008)
-  const visibleItems = isAdminEmpresa
-    ? items.filter((it) => it.to !== "/formas-pago" && it.to !== "/estados-pago")
-    : items;
+  let visibleItems = [...items];
+
+  // AdminEmpresa: NO ve Formas de pago ni Estados de pago
+  if (isAdminEmpresa) {
+    visibleItems = visibleItems.filter(
+      (it) => it.to !== "/formas-pago" && it.to !== "/estados-pago"
+    );
+  }
+
+  // SupervisorEmpresa: NO ve Empresas ni Tarifas
+  if (isSupervisorEmpresa) {
+    visibleItems = visibleItems.filter(
+      (it) => it.to !== "/empresas" && it.to !== "/tarifas"
+    );
+  }
 
   return (
     <>
@@ -53,7 +64,8 @@ export default function Sidebar() {
               key={it.to}
               to={it.to}
               className={({ isActive }) =>
-                "nav-pill d-flex align-items-center " + (isActive ? "active" : "")
+                "nav-pill d-flex align-items-center " +
+                (isActive ? "active" : "")
               }
             >
               <i className={`bi ${it.icon} me-3`}></i>
@@ -70,7 +82,9 @@ export default function Sidebar() {
             </div>
             <div className="info">
               <div className="name">{user?.nombre || "Usuario"}</div>
-              <div className="email" title={user?.correo}>{user?.correo}</div>
+              <div className="email" title={user?.correo}>
+                {user?.correo}
+              </div>
             </div>
           </div>
 

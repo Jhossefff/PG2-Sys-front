@@ -1,16 +1,36 @@
 // src/views/UsuariosView.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Card, Row, Col, Spinner, Alert, Button, InputGroup, Form } from "react-bootstrap";
-import { getUsuarios, createUsuario, updateUsuario, deleteUsuario } from "../api/usuarios";
+import {
+  Table,
+  Card,
+  Row,
+  Col,
+  Spinner,
+  Alert,
+  Button,
+  InputGroup,
+  Form,
+} from "react-bootstrap";
+import {
+  getUsuarios,
+  createUsuario,
+  updateUsuario,
+  deleteUsuario,
+} from "../api/usuarios";
 import { getEmpresas } from "../api/empresas";
 import { getRoles } from "../api/roles";
 import UsuarioFormModal from "../components/UsuarioFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { useEmpresaScope } from "../hooks/useEmpresaScope";
 import { applyEmpresaScope } from "../utils/scope";
+import { ROLES } from "../context/AuthContext.jsx";
 
 const normalize = (v) =>
-  (v ?? "").toString().toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  (v ?? "")
+    .toString()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "");
 
 const matchesQuery = (u, q) => {
   if (!q) return true;
@@ -21,7 +41,6 @@ const matchesQuery = (u, q) => {
 
 export default function UsuariosView() {
   const scope = useEmpresaScope();
-
   const [usuarios, setUsuarios] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -53,10 +72,19 @@ export default function UsuariosView() {
     setLoading(true);
     setError(null);
     try {
-      const [us, emps, rols] = await Promise.all([getUsuarios(), getEmpresas(), getRoles()]);
-      setUsuarios(applyEmpresaScope(us, scope));
-      setEmpresas(applyEmpresaScope(emps, scope));
-      setRoles(rols); // roles no necesariamente por empresa
+      const [us, emps, rols] = await Promise.all([
+        getUsuarios(),
+        getEmpresas(),
+        getRoles(),
+      ]);
+
+      // Filtrar por empresa para AdminEmpresa y SupervisorEmpresa
+      const scopedUsuarios = applyEmpresaScope(us, scope);
+      const scopedEmpresas = applyEmpresaScope(emps, scope);
+
+      setUsuarios(scopedUsuarios);
+      setEmpresas(scopedEmpresas);
+      setRoles(rols); // roles completos, luego filtramos solo para el formulario
     } catch (err) {
       setError(err.message || "Error inesperado");
     } finally {
@@ -67,23 +95,54 @@ export default function UsuariosView() {
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scope.isAdminEmpresa, scope.empresaId]);
+  }, [scope.isAdminEmpresa, scope.isSupervisorEmpresa, scope.empresaId]);
 
   const usuariosFiltrados = useMemo(
     () => usuarios.filter((u) => matchesQuery(u, debouncedQuery)),
     [usuarios, debouncedQuery]
   );
 
+  // ---- Restricciones especiales para SupervisorEmpresa ----
+  // 1) Solo puede crear usuarios AsistentesEmpresa (#2011)
+  const rolesForForm = useMemo(() => {
+    if (scope.isSupervisorEmpresa) {
+      return roles.filter(
+        (r) => Number(r.idrol) === Number(ROLES.ASISTENTES_EMPRESA)
+      );
+    }
+    return roles;
+  }, [roles, scope.isSupervisorEmpresa]);
+
+  // 2) AdminEmpresa y SupervisorEmpresa solo ven su propia empresa en el combo
+  const empresasForForm = useMemo(() => {
+    if ((scope.isAdminEmpresa || scope.isSupervisorEmpresa) && scope.empresaId) {
+      return empresas.filter(
+        (e) => Number(e.idempresa) === Number(scope.empresaId)
+      );
+    }
+    return empresas;
+  }, [
+    empresas,
+    scope.isAdminEmpresa,
+    scope.isSupervisorEmpresa,
+    scope.empresaId,
+  ]);
+
+  // 3) SupervisorEmpresa NO puede editar ni eliminar usuarios
+  const canEditDelete = !scope.isSupervisorEmpresa;
+
   const openNew = () => {
     setSelectedUsuario(null);
     setSaveError(null);
     setShowModal(true);
   };
+
   const openEdit = (u) => {
     setSelectedUsuario(u);
     setSaveError(null);
     setShowModal(true);
   };
+
   const handleClose = () => {
     if (!saving) setShowModal(false);
   };
@@ -110,12 +169,15 @@ export default function UsuariosView() {
   };
 
   const askDelete = (u) => {
+    if (!canEditDelete) return;
     setToDelete(u);
     setConfirmOpen(true);
   };
+
   const cancelDelete = () => {
     if (!deleting) setConfirmOpen(false);
   };
+
   const confirmDelete = async () => {
     if (!toDelete) return;
     setDeleting(true);
@@ -132,6 +194,7 @@ export default function UsuariosView() {
     }
   };
 
+  // ---- Render ----
   if (loading) {
     return (
       <div className="text-center my-5">
@@ -140,6 +203,7 @@ export default function UsuariosView() {
       </div>
     );
   }
+
   if (error) return <Alert variant="danger">Error: {error}</Alert>;
 
   return (
@@ -213,20 +277,24 @@ export default function UsuariosView() {
                 <tr key={u.idusuario}>
                   <td>
                     <div className="d-flex flex-wrap gap-1 justify-content-center">
-                      <button
-                        className="btn btn-primary btn-sm"
-                        title="Editar"
-                        onClick={() => openEdit(u)}
-                      >
-                        <i className="bi bi-pencil-fill"></i>
-                      </button>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        title="Eliminar"
-                        onClick={() => askDelete(u)}
-                      >
-                        <i className="bi bi-trash-fill"></i>
-                      </button>
+                      {canEditDelete && (
+                        <>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            title="Editar"
+                            onClick={() => openEdit(u)}
+                          >
+                            <i className="bi bi-pencil-fill"></i>
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            title="Eliminar"
+                            onClick={() => askDelete(u)}
+                          >
+                            <i className="bi bi-trash-fill"></i>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                   <td>{u.idusuario}</td>
@@ -283,8 +351,8 @@ export default function UsuariosView() {
         loading={saving}
         error={saveError}
         usuario={selectedUsuario}
-        roles={roles}
-        empresas={empresas}
+        roles={rolesForForm}
+        empresas={empresasForForm}
       />
 
       <ConfirmDialog
@@ -294,11 +362,14 @@ export default function UsuariosView() {
           <>
             ¿Seguro que deseas eliminar a{" "}
             <strong>
-              {selectedUsuario
-                ? `${selectedUsuario?.nombre} ${selectedUsuario?.apellido}`
-                : `ID ${toDelete?.idusuario}`}
+              {toDelete
+                ? [toDelete.nombre, toDelete.apellido]
+                    .filter(Boolean)
+                    .join(" ")
+                : ""}
             </strong>
             ?
+            <br />
             Esta acción no se puede deshacer.
           </>
         }

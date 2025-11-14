@@ -4,19 +4,19 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 const API = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
 
 export const ROLES = {
-  ADMIN: 2007,    // Ajusta a tus ids reales
-   ADMIN_EMPRESA: 2008, 
+  ADMIN: 2007,
+  ADMIN_EMPRESA: 2008,
   SOPORTE: 2009,
-  // agrega más si tienes
+  SUPERVISOR_EMPRESA: 2010,      // <-- agregado
+  ASISTENTES_EMPRESA: 2011,      // <-- agregado
 };
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // { idusuario, idrol, correo, ... }
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar sesión persistida
   useEffect(() => {
     try {
       const raw = localStorage.getItem("app.user");
@@ -25,15 +25,12 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  // Guardar cambios de sesión
   useEffect(() => {
     if (user) localStorage.setItem("app.user", JSON.stringify(user));
     else localStorage.removeItem("app.user");
   }, [user]);
 
-  // ---- API auth ----
   async function signIn(email, password) {
-    // Llama a tu endpoint de login del backend
     const res = await fetch(`${API}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -49,18 +46,16 @@ export function AuthProvider({ children }) {
       throw new Error(msg);
     }
 
-    const data = await res.json(); // { user, token? }
-    setUser(data.user || data);     // soporta ambas formas
+    const data = await res.json();
+    setUser(data.user || data);
     return data;
   }
 
-  // alias por si alguna vista usa otros nombres
   const signin = signIn;
   const login = signIn;
 
   function logout() {
     setUser(null);
-    // si usas tokens, aquí podrías limpiar storage/cookies
   }
   const signOut = logout;
 
@@ -68,10 +63,8 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       loading,
-      // helpers
       isLoggedIn: !!user,
       roleId: user?.idrol ? Number(user.idrol) : null,
-      // acciones (exponemos TODOS los alias)
       signIn,
       signin,
       login,

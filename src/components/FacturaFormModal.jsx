@@ -192,14 +192,16 @@ export default function FacturaFormModal({
                     <Form.Label>Reservación *</Form.Label>
                     <Form.Select required name="idreservacion" value={form.idreservacion} onChange={handleChange}>
                       <option value="">Seleccione reservación</option>
-                      {reservaciones.map(r => (
-                        <option key={r.idreservacion} value={r.idreservacion}>
-                          #{r.idreservacion}
-                          {r.empresa_nombre ? ` • ${r.empresa_nombre}` : ""}
-                          {r.lugar_nombre ? ` • Lugar ${r.lugar_nombre}` : ""}
-                          {r.estado_reservacion ? ` • ${r.estado_reservacion}` : ""}
-                        </option>
-                      ))}
+                      {reservaciones
+                        .filter(r => String(r.estado_reservacion).toLowerCase() === "completado")
+                        .map(r => (
+                          <option key={r.idreservacion} value={r.idreservacion}>
+                            #{r.idreservacion}
+                            {r.empresa_nombre ? ` • ${r.empresa_nombre}` : ""}
+                            {r.lugar_nombre ? ` • Lugar ${r.lugar_nombre}` : ""}
+                            {r.estado_reservacion ? ` • ${r.estado_reservacion}` : ""}
+                          </option>
+                        ))}
                     </Form.Select>
                     <Form.Control.Feedback type="invalid">Selecciona una reservación.</Form.Control.Feedback>
                   </Form.Group>

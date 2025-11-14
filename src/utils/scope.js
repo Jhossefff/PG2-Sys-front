@@ -1,17 +1,54 @@
 // src/utils/scope.js
-// Utilidades de “scope” por empresa
+// Helpers para filtrar listas según la empresa del usuario logueado
 
 /**
- * Filtra arreglos por empresa cuando el usuario tiene el rol AdminEmpresa.
- * @param {Array} items - arreglo de objetos con campo idempresa
- * @param {{isAdminEmpresa:boolean, empresaId:number|null}} scope
- * @returns {Array}
+ * Obtiene el id de empresa de un registro, probando varios nombres de campo.
  */
-export function applyEmpresaScope(items, scope) {
-  if (!Array.isArray(items)) return [];
-  if (scope?.isAdminEmpresa && scope?.empresaId != null) {
-    const eid = Number(scope.empresaId);
-    return items.filter((x) => Number(x?.idempresa) === eid);
+function getEmpresaFromRow(row) {
+  if (!row || typeof row !== "object") return null;
+
+  const keys = ["idempresa", "empresaId", "idEmpresa", "id_empresa"];
+  for (const k of keys) {
+    if (row[k] != null) return Number(row[k]);
   }
-  return items;
+  return null;
+}
+
+/**
+ * Aplica el alcance de empresa a una lista genérica.
+ *
+ * - Para roles de empresa (AdminEmpresa, SupervisorEmpresa, AsistentesEmpresa)
+ *   y teniendo empresaId, se filtra por esa empresa.
+ * - Si el registro NO tiene ningún campo de empresa, NO se filtra (se deja pasar).
+ *   Esto evita que, por ejemplo, las facturas se queden en cero si el SELECT
+ *   no trae idempresa.
+ */
+export function applyEmpresaScope(list, scope) {
+  if (!Array.isArray(list)) return [];
+  if (!scope) return list;
+
+  const {
+    empresaId,
+    isAdminEmpresa,
+    isSupervisorEmpresa,
+    isAsistentesEmpresa,
+  } = scope;
+
+  // Si no es un rol de empresa o no tenemos empresaId → no filtrar nada
+  const isEmpresaRole =
+    isAdminEmpresa || isSupervisorEmpresa || isAsistentesEmpresa;
+
+  if (!isEmpresaRole || !empresaId) {
+    return list;
+  }
+
+  const empresaNum = Number(empresaId);
+
+  return list.filter((row) => {
+    const emp = getEmpresaFromRow(row);
+    // Si el registro no tiene empresa asociada, lo dejamos pasar
+    if (emp == null || Number.isNaN(emp)) return true;
+
+    return emp === empresaNum;
+  });
 }

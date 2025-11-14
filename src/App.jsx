@@ -8,7 +8,8 @@ import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { ROLES } from "./context/AuthContext.jsx";
 
 import DenyAdminEmpresa from "./guards/DenyAdminEmpresa.jsx";
-
+import DenySupervisorEmpresa from "./guards/DenySupervisorEmpresa.jsx";
+import DenyAsistenteEmpresa from "./guards/DenyAsistenteEmpresa.jsx";
 
 import LoginView from "./views/LoginView.jsx";
 import EmpresasView from "./views/EmpresasView.jsx";
@@ -21,56 +22,140 @@ import EstadosPagoView from "./views/EstadosPagoView.jsx";
 import UsuariosView from "./views/UsuariosView.jsx";
 import FacturasView from "./views/FacturasView.jsx";
 
-const SOLO_STAFF = [ROLES.ADMIN, ROLES.SOPORTE, ROLES.ADMIN_EMPRESA];
+const SOLO_STAFF = [
+  ROLES.ADMIN,
+  ROLES.SOPORTE,
+  ROLES.ADMIN_EMPRESA,
+  ROLES.SUPERVISOR_EMPRESA,
+  ROLES.ASISTENTES_EMPRESA,
+];
 
 function App() {
   return (
     <Routes>
       {/* Público */}
       <Route path="/login" element={<LoginView />} />
-      <Route path="/no-autorizado" element={<div className="p-4">No autorizado</div>} />
+      <Route
+        path="/no-autorizado"
+        element={<div className="p-4">No autorizado</div>}
+      />
 
-      {/* Privado: requiere sesión y rol permitido */}
+      {/* Privado */}
       <Route element={<ProtectedRoute requireAuth allowRoles={SOLO_STAFF} />}>
         <Route element={<DashboardLayout />}>
-          <Route index element={<Navigate to="/empresas" replace />} />
+          <Route index element={<Navigate to="/reservaciones" replace />} />
 
-          <Route path="/empresas" element={<EmpresasView />} />
-          <Route path="/clientes" element={<ClientesView />} />
-          <Route path="/lugares" element={<LugaresView />} />
-          <Route path="/usuarios" element={<UsuariosView />} />
+          {/* ❌ AsistentesEmpresa NO puede entrar aquí */}
+          <Route
+            path="/empresas"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <DenySupervisorEmpresa redirectTo="/reservaciones">
+                  <EmpresasView />
+                </DenySupervisorEmpresa>
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          <Route
+            path="/clientes"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <ClientesView />
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          <Route
+            path="/lugares"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <LugaresView />
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          <Route
+            path="/usuarios"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <UsuariosView />
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          {/* ✅ AsistentesEmpresa SÍ puede entrar */}
           <Route path="/reservaciones" element={<ReservacionesView />} />
-          <Route path="/tarifas" element={<TarifasView />} />
 
-          {/* 🔒 Bloqueadas para AdminEmpresa (#2008) */}
+          {/* ❌ Bloqueado para SupervisorEmpresa y AsistentesEmpresa */}
+          <Route
+            path="/tarifas"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <DenySupervisorEmpresa redirectTo="/reservaciones">
+                  <TarifasView />
+                </DenySupervisorEmpresa>
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          {/* ❌ Solo AdminEmpresa no puede entrar */}
           <Route
             path="/formas-pago"
             element={
-              <DenyAdminEmpresa redirectTo="/empresas">
-                <FormasPagoView />
-              </DenyAdminEmpresa>
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <DenyAdminEmpresa redirectTo="/empresas">
+                  <FormasPagoView />
+                </DenyAdminEmpresa>
+              </DenyAsistenteEmpresa>
             }
           />
           <Route
             path="/estados-pago"
             element={
-              <DenyAdminEmpresa redirectTo="/empresas">
-                <EstadosPagoView />
-              </DenyAdminEmpresa>
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <DenyAdminEmpresa redirectTo="/empresas">
+                  <EstadosPagoView />
+                </DenyAdminEmpresa>
+              </DenyAsistenteEmpresa>
             }
           />
 
+          {/* ✅ AsistentesEmpresa SÍ puede entrar */}
           <Route path="/facturas" element={<FacturasView />} />
 
-          {/* futuros */}
-          <Route path="/overview" element={<div className="placeholder">Overview (próximamente)</div>} />
-          <Route path="/agenda" element={<div className="placeholder">Agenda (próximamente)</div>} />
-          <Route path="/reportes" element={<div className="placeholder">Reportes (próximamente)</div>} />
+          {/* Pantallas futuras bloqueadas también */}
+          <Route
+            path="/overview"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <div className="placeholder">Overview (próximamente)</div>
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          <Route
+            path="/agenda"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <div className="placeholder">Agenda (próximamente)</div>
+              </DenyAsistenteEmpresa>
+            }
+          />
+
+          <Route
+            path="/reportes"
+            element={
+              <DenyAsistenteEmpresa redirectTo="/reservaciones">
+                <div className="placeholder">Reportes (próximamente)</div>
+              </DenyAsistenteEmpresa>
+            }
+          />
         </Route>
       </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/empresas" replace />} />
+      {/* fallback */}
+      <Route path="*" element={<Navigate to="/reservaciones" replace />} />
     </Routes>
   );
 }
