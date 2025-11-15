@@ -5,7 +5,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 
-import { ROLES } from "./context/AuthContext.jsx";
+import { useAuth, ROLES } from "./context/AuthContext.jsx";
 
 import DenyAdminEmpresa from "./guards/DenyAdminEmpresa.jsx";
 import DenySupervisorEmpresa from "./guards/DenySupervisorEmpresa.jsx";
@@ -21,6 +21,8 @@ import FormasPagoView from "./views/FormasPagoView.jsx";
 import EstadosPagoView from "./views/EstadosPagoView.jsx";
 import UsuariosView from "./views/UsuariosView.jsx";
 import FacturasView from "./views/FacturasView.jsx";
+import OverviewView from "./views/OverviewView.jsx";
+import OverviewAdminView from "./views/OverviewAdminView.jsx";
 
 const SOLO_STAFF = [
   ROLES.ADMIN,
@@ -31,6 +33,13 @@ const SOLO_STAFF = [
 ];
 
 function App() {
+  // 👇 obtenemos el rol actual
+  const { roleId } = useAuth();
+  const r = Number(roleId);
+
+  // true solo para Admin (2007) y Soporte (2009)
+  const isAdminOrSoporte = r === ROLES.ADMIN || r === ROLES.SOPORTE;
+
   return (
     <Routes>
       {/* Público */}
@@ -65,7 +74,6 @@ function App() {
               </DenyAsistenteEmpresa>
             }
           />
-
           <Route
             path="/lugares"
             element={
@@ -124,14 +132,13 @@ function App() {
           {/* ✅ AsistentesEmpresa SÍ puede entrar */}
           <Route path="/facturas" element={<FacturasView />} />
 
-          {/* Pantallas futuras bloqueadas también */}
+          {/* OVERVIEW:
+              - Admin / Soporte -> OverviewAdminView
+              - AdminEmpresa / SupervisorEmpresa / AsistentesEmpresa -> OverviewView
+          */}
           <Route
             path="/overview"
-            element={
-              <DenyAsistenteEmpresa redirectTo="/reservaciones">
-                <div className="placeholder">Overview (próximamente)</div>
-              </DenyAsistenteEmpresa>
-            }
+            element={isAdminOrSoporte ? <OverviewAdminView /> : <OverviewView />}
           />
 
           <Route
